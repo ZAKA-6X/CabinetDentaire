@@ -1,0 +1,245 @@
+classDiagram
+    direction TB
+
+    %% ══════════════════════════════════════════
+    %% UTILISATEURS ET RÔLES
+    %% ══════════════════════════════════════════
+
+    class Utilisateur {
+        +int id
+        +string email
+        +string mot_de_passe
+        +enum role
+        +enum statut
+        +datetime date_creation
+        +datetime derniere_connexion
+        +seConnecter()
+        +seDeconnecter()
+        +changerMotDePasse()
+    }
+
+    class Patient {
+        +int id
+        +string nom_complet
+        +string telephone
+        +string adresse
+        +date date_naissance
+        +enum sexe
+        +text antecedents_medicaux
+        +text allergies
+        +string contact_urgence
+        +date date_inscription
+        +text notes_generales
+        +mettreAJourProfil()
+        +reserverRendezVous()
+        +afficherVisites()
+        +afficherOrdonnances()
+        +afficherFactures()
+        +telechargerPDF()
+    }
+
+    class Secretaire {
+        +int id
+        +string nom_complet
+        +string numero_employe
+        +date date_embauche
+        +string specialite
+        +confirmerRendezVous()
+        +rejeterRendezVous()
+        +confirmerPaiement()
+        +gererMedicaments()
+        +afficherRapports()
+    }
+
+    class Dentiste {
+        +int id
+        +string nom_complet
+        +string numero_licence
+        +string specialite
+        +string biographie
+        +string photo
+        +string heures_travail
+        +afficherHoraire()
+        +enregistrerVisite()
+        +emettreOrdonnance()
+        +afficherDossierPatient()
+    }
+
+    %% ══════════════════════════════════════════
+    %% RENDEZ-VOUS
+    %% ══════════════════════════════════════════
+
+    class RendezVous {
+        +int id
+        +int patient_id
+        +int dentiste_id
+        +int secretaire_id
+        +datetime date_heure
+        +int duree
+        +text raison
+        +enum statut
+        +text notes
+        +datetime cree_le
+        +datetime confirme_le
+        +confirmer()
+        +annuler()
+        +marquerComplete()
+    }
+
+    %% ══════════════════════════════════════════
+    %% VISITES
+    %% ══════════════════════════════════════════
+
+    class Visite {
+        +int id
+        +int rendezvous_id
+        +int patient_id
+        +int dentiste_id
+        +date date_visite
+        +text diagnostic
+        +text traitement_fourni
+        +text notes
+        +enum statut
+        +datetime cree_le
+        +enregistrer()
+        +marquerComplete()
+        +genererFacture()
+    }
+
+    class OperationDentaire {
+        +int id
+        +int visite_id
+        +string nom_operation
+        +text description
+        +decimal cout
+        +date date_effectuee
+        +calculerCout()
+    }
+
+    %% ══════════════════════════════════════════
+    %% ORDONNANCES
+    %% ══════════════════════════════════════════
+
+    class Ordonnance {
+        +int id
+        +int visite_id
+        +int patient_id
+        +int dentiste_id
+        +date date_delivrance
+        +text instructions_generales
+        +enum statut
+        +datetime cree_le
+        +emettre()
+        +afficher()
+        +exporterPDF()
+    }
+
+    class OrdonnanceMedicament {
+        +int id
+        +int ordonnance_id
+        +int medicament_id
+        +string frequence
+        +int duree_jours
+        +text instructions_speciales
+    }
+
+    class Medicament {
+        +int id
+        +string nom
+        +text description
+        +string forme
+        +string dosage
+        +string fournisseur
+        +decimal prix_unitaire
+        +int stock_disponible
+        +date date_expiration
+        +datetime cree_le
+        +datetime mis_a_jour_le
+        +ajouter()
+        +modifier()
+        +supprimer()
+    }
+
+    %% ══════════════════════════════════════════
+    %% FACTURATION
+    %% ══════════════════════════════════════════
+
+    class Facture {
+        +int id
+        +string numero_facture
+        +int visite_id
+        +int patient_id
+        +date date_facture
+        +decimal frais_visite_base
+        +decimal frais_operations
+        +decimal montant_total
+        +enum statut
+        +date date_paiement
+        +int secretaire_id
+        +text notes
+        +calculerTotal()
+        +generer()
+        +exporterPDF()
+    }
+
+    class Paiement {
+        +int id
+        +int facture_id
+        +decimal montant_recu
+        +date date_paiement
+        +enum methode_paiement
+        +string numero_recu
+        +int secretaire_id
+        +text notes
+        +confirmer()
+        +genererRecu()
+    }
+
+    %% ══════════════════════════════════════════
+    %% JOURNAL D'AUDIT
+    %% ══════════════════════════════════════════
+
+    class Audit {
+        +int id
+        +int utilisateur_id
+        +enum action
+        +string table_affectee
+        +int id_enregistrement
+        +json ancienne_valeur
+        +json nouvelle_valeur
+        +datetime horodatage
+        +string adresse_ip
+        +enregistrer()
+    }
+
+    %% ══════════════════════════════════════════
+    %% RELATIONS
+    %% ══════════════════════════════════════════
+
+    Utilisateur <|-- Patient : hérite
+    Utilisateur <|-- Secretaire : hérite
+    Utilisateur <|-- Dentiste : hérite
+
+    Patient "1" --> "0..*" RendezVous : réserve
+    Dentiste "1" --> "0..*" RendezVous : reçoit
+    Secretaire "1" --> "0..*" RendezVous : confirme
+
+    RendezVous "1" --> "0..1" Visite : génère
+
+    Visite "1" --> "0..*" OperationDentaire : contient
+    Visite "1" --> "0..1" Ordonnance : associée à
+    Visite "1" --> "0..1" Facture : génère
+
+    Ordonnance "1" --> "1..*" OrdonnanceMedicament : contient
+    OrdonnanceMedicament "1" --> "1" Medicament : référence
+
+    Facture "1" --> "0..1" Paiement : réglée par
+    Secretaire "1" --> "0..*" Paiement : confirme
+    Secretaire "1" --> "0..*" Medicament : gère
+
+    Utilisateur "1" --> "0..*" Audit : génère
+
+    Patient "1" --> "0..*" Ordonnance : reçoit
+    Patient "1" --> "0..*" Facture : paie
+    Dentiste "1" --> "0..*" Visite : enregistre
+    Dentiste "1" --> "0..*" Ordonnance : émet
