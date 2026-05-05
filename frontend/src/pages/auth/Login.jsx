@@ -46,15 +46,20 @@ function Login() {
 
       {/* Partie gauche — bleue */}
       <div style={styles.left}>
+  <div style={{
+    position: 'absolute',
+    inset: 0,
+    background: 'rgba(11, 31, 58, 0.22)',
+      }}/>
         <div style={styles.logoBox}>🦷</div>
-        <h1 style={styles.logoTitle}>DentaApp</h1>
+        <h1 style={styles.logoTitle}>Dentisto</h1>
         <p style={styles.logoSub}>Système de gestion du cabinet dentaire</p>
 
         <div style={styles.features}>
-          <div style={styles.feature}>📅 Gestion des rendez-vous</div>
-          <div style={styles.feature}>📋 Dossiers patients numérisés</div>
-          <div style={styles.feature}>💊 Ordonnances & prescriptions</div>
-          <div style={styles.feature}>💳 Facturation automatisée</div>
+          <div style={styles.feature}> Gestion des rendez-vous</div>
+          <div style={styles.feature}> Dossiers patients numérisés</div>
+          <div style={styles.feature}> Ordonnances & prescriptions</div>
+          <div style={styles.feature}> Facturation automatisée</div>
         </div>
       </div>
 
@@ -78,7 +83,7 @@ function Login() {
               <label style={styles.label}>Adresse email</label>
               <input
                 type="email"
-                placeholder="exemple@email.com"
+                placeholder="exemple@gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 style={styles.input}
@@ -105,6 +110,21 @@ function Login() {
             >
               {loading ? 'Connexion...' : 'Se connecter →'}
             </button>
+            <div style={{ margin: '1.5rem 0', textAlign: 'center', color: '#94A3B8', fontSize: '0.8rem' }}>
+  — Démonstration rapide —
+</div>
+
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '1rem' }}>
+  <button style={styles.btnDemo} onClick={() => { setEmail('patient@demo.com'); setPassword('password') }}>
+    👤 Patient
+  </button>
+  <button style={styles.btnDemo} onClick={() => { setEmail('secretaire@demo.com'); setPassword('password') }}>
+    👩‍💼 Secrétaire
+  </button>
+  <button style={styles.btnDemo} onClick={() => { setEmail('dentiste@demo.com'); setPassword('password') }}>
+    🦷 Dentiste
+  </button>
+</div>
 
           </form>
 
@@ -126,14 +146,17 @@ const styles = {
     minHeight: '100vh',
   },
   left: {
-    width: '45%',
-    background: '#0B1F3A',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '3rem',
-  },
+  width: '45%',
+  backgroundImage: 'url(https://adent.ch/wp-content/uploads/2022/04/cdsf_page_clinique_signature.jpg)',
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  position: 'relative',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '3rem',
+},
   logoBox: {
     fontSize: '3rem',
     background: '#00C9A7',
@@ -146,26 +169,31 @@ const styles = {
     marginBottom: '1rem',
   },
   logoTitle: {
-    color: 'white',
-    fontSize: '2rem',
-    margin: '0 0 0.5rem',
-    fontFamily: 'Georgia, serif',
-  },
-  logoSub: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: '0.9rem',
-    textAlign: 'center',
-    marginBottom: '2rem',
-  },
-  features: {
-    width: '100%',
-    marginTop: '1rem',
-  },
+  color: 'black',
+  fontSize: '2.5rem',
+  margin: '0 0 0.5rem',
+  fontFamily: 'Georgia, serif',
+  textShadow: '2px 2px 10px rgba(0,0,0,0.9)',  // ← zid had
+},
+logoSub: {
+  color: 'black',                             // ← bdl rgba b white
+  fontSize: '2.0rem',
+  textAlign: 'center',
+  marginBottom: '2rem',
+  textShadow: '0 2px 6px rgba(0,0,0,0.8)',  // ← zid had
+},
+feature: {
+  color: 'black',                             // ← bdl rgba b white
+  padding: '12px 0',
+  borderBottom: '1px solid rgba(0,0,0,0.1)',
+  fontSize: '0.9rem',
+  textShadow: '0 1px 4px rgba(0,0,0,0.8)',  // ← zid had
+},
   feature: {
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgb(0, 0, 0)',
     padding: '12px 0',
-    borderBottom: '1px solid rgba(255,255,255,0.07)',
-    fontSize: '0.9rem',
+    borderBottom: '1px solid rgb(38, 227, 145)',
+    fontSize: '1.5rem',
   },
   right: {
     flex: 1,
@@ -242,6 +270,16 @@ const styles = {
     textDecoration: 'none',
     fontWeight: '500',
   },
+  btnDemo: {
+  background: 'white',
+  border: '1.5px solid #E2E8F0',
+  borderRadius: '8px',
+  padding: '8px',
+  cursor: 'pointer',
+  fontSize: '0.82rem',
+  color: '#475569',
+  fontFamily: 'inherit',
+},
 }
 
 export default Login
