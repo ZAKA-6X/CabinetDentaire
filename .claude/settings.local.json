@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan *)",
+      "Bash(Get-ChildItem C:\\\\xampp\\\\htdocs\\\\Cabinet Dentaire\\\\backend\\\\app\\\\Http\\\\Controllers\\\\Auth *)",
+      "Bash(composer require *)"
+    ]
+  }
+}
