@@ -14,10 +14,6 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->string('forme')->nullable();
             $table->string('dosage')->nullable();
-            $table->string('fournisseur')->nullable();
-            $table->decimal('prix_unitaire', 10, 2)->default(0);
-            $table->integer('stock_disponible')->default(0);
-            $table->date('date_expiration')->nullable();
             $table->datetime('cree_le')->useCurrent();
             $table->datetime('mis_a_jour_le')->nullable();
             $table->timestamps();

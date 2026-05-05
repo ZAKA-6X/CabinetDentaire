@@ -8,13 +8,12 @@ class Patient extends Model
 {
     protected $fillable = [
         'utilisateur_id',
-        'nom_complet',
+        'nom',
+        'prenom',
         'telephone',
         'adresse',
         'date_naissance',
         'sexe',
-        'antecedents_medicaux',
-        'allergies',
         'contact_urgence',
         'notes_generales',
     ];

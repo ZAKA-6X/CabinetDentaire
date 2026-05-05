@@ -11,12 +11,11 @@ return new class extends Migration
         Schema::create('dentistes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('utilisateur_id')->constrained('utilisateurs')->onDelete('cascade');
-            $table->string('nom_complet');
-            $table->string('numero_licence')->unique();
+            $table->string('nom');
+            $table->string('prenom');
             $table->string('specialite')->nullable();
             $table->text('biographie')->nullable();
             $table->string('photo')->nullable();
-            $table->string('heures_travail')->nullable();
             $table->timestamps();
         });
     }
