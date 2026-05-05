@@ -594,142 +594,155 @@ SECTION 5: ENTITÉS DE DONNÉES
 5.1 MODÈLE DE DONNÉES PRINCIPAL (SCHÉMA CONCEPTUEL)
 ─────────────────────────────────────────────────────
 
-TABLE UTILISATEURS (Users)
+TABLE UTILISATEURS
 ├─ id (Clé primaire)
-├─ email (unique, pour connexion)
-├─ mot_de_passe (haché)
-├─ rôle (enum: PATIENT, SECRÉTAIRE, DENTISTE)
-├─ date_création
-├─ dernière_connexion
-└─ statut (enum: ACTIF, INACTIF, SUSPENDU)
+├─ email (unique)
+├─ password (haché)
+├─ role (enum: patient, secretaire, dentiste, admin)
+├─ statut (enum: actif, inactif, suspendu)
+├─ date_creation
+└─ derniere_connexion
 
 TABLE PATIENTS
-├─ id (Clé primaire, FK → Users)
-├─ nom_complet
-├─ téléphone
+├─ id (Clé primaire)
+├─ utilisateur_id (FK → utilisateurs)
+├─ nom
+├─ prenom
+├─ telephone
 ├─ adresse
 ├─ date_naissance
-├─ sexe (M/F)
-├─ antécédents_médicaux (texte)
-├─ allergies (texte)
+├─ sexe (enum: masculin, feminin)
 ├─ contact_urgence
 ├─ date_inscription
-└─ notes_générales
+└─ notes_generales
 
-TABLE SECRÉTAIRES
-├─ id (Clé primaire, FK → Users)
-├─ nom_complet
-├─ numéro_employé
-├─ date_embauche
-└─ spécialité
+TABLE SECRETAIRES
+├─ id (Clé primaire)
+├─ utilisateur_id (FK → utilisateurs)
+├─ nom
+├─ prenom
+├─ numero_employe (unique)
+└─ date_embauche
 
 TABLE DENTISTES
-├─ id (Clé primaire, FK → Users)
-├─ nom_complet
-├─ numéro_licence
-├─ spécialité
+├─ id (Clé primaire)
+├─ utilisateur_id (FK → utilisateurs)
+├─ nom
+├─ prenom
+├─ specialite
 ├─ biographie
-├─ photo
-└─ heures_travail
+└─ photo
 
-TABLE RENDEZ_VOUS (Appointments/Reservations)
+TABLE RENDEZ_VOUS
 ├─ id (Clé primaire)
-├─ patient_id (FK → Patients)
-├─ dentiste_id (FK → Dentistes)
+├─ patient_id (FK → patients)
+├─ dentiste_id (FK → dentistes)
+├─ secretaire_id (FK → secretaires, nullable)
 ├─ date_heure
-├─ durée (minutes)
-├─ raison (texte optionnel)
-├─ statut (enum: EN_ATTENTE, CONFIRMÉ, ANNULÉ, COMPLÉTÉ)
-├─ notes
-├─ créé_le
-├─ confirmé_le
-└─ sécrétaire_id (FK → Secrétaires, si confirmé)
+├─ duree (minutes, défaut 30)
+├─ raison (texte, nullable)
+├─ statut (enum: en_attente, confirme, annule, complete)
+├─ notes (nullable)
+├─ cree_le
+└─ confirme_le (nullable)
 
-TABLE VISITES (Visits)
+TABLE VISITES
 ├─ id (Clé primaire)
-├─ rendez_vous_id (FK → Rendez_vous)
-├─ patient_id (FK → Patients)
-├─ dentiste_id (FK → Dentistes)
+├─ rendezvous_id (FK → rendez_vous, nullable)
+├─ patient_id (FK → patients)
+├─ dentiste_id (FK → dentistes)
 ├─ date_visite
-├─ diagnostic (texte)
-├─ traitement_fourni (texte)
-├─ notes (texte)
-├─ statut (enum: EN_COURS, COMPLÉTÉ)
-└─ créé_le
+├─ diagnostic (texte, nullable)
+├─ traitement_fourni (texte, nullable)
+├─ notes (texte, nullable)
+├─ statut (enum: en_cours, complete, annulee)
+└─ cree_le
 
-TABLE OPÉRATIONS_DENTAIRES
+TABLE OPERATION_DENTAIRES  ← snapshot au moment de la visite
 ├─ id (Clé primaire)
-├─ visite_id (FK → Visites)
-├─ nom_opération (p. ex., Détartrage, Remplissage)
-├─ description
-├─ coût
-└─ date_effectuée
+├─ visite_id (FK → visites)
+├─ nom_operation
+├─ description (nullable)
+├─ cout
+└─ date_effectuee
 
-TABLE ORDONNANCES (Prescriptions)
+TABLE CATALOGUE_OPERATIONS  ← tarifs de référence modifiables
 ├─ id (Clé primaire)
-├─ visite_id (FK → Visites)
-├─ patient_id (FK → Patients)
-├─ dentiste_id (FK → Dentistes)
-├─ date_délivrance
-├─ instructions_générales (texte)
-├─ statut (enum: ACTIF, COMPLÉTÉ, ANNULÉ)
-└─ créé_le
+├─ nom
+├─ description (nullable)
+└─ cout
 
-TABLE ORDONNANCE_MÉDICAMENTS
+TABLE ORDONNANCES
 ├─ id (Clé primaire)
-├─ ordonnance_id (FK → Ordonnances)
-├─ médicament_id (FK → Médicaments)
-├─ fréquence (p. ex., "2 fois par jour")
-├─ durée_jours
-└─ instructions_spéciales (texte)
+├─ visite_id (FK → visites)
+├─ patient_id (FK → patients)
+├─ dentiste_id (FK → dentistes)
+├─ date_delivrance
+├─ instructions_generales (texte, nullable)
+├─ statut (enum: active, expiree, annulee)
+└─ cree_le
 
-TABLE MÉDICAMENTS (Medications)
+TABLE ORDONNANCE_MEDICAMENTS
 ├─ id (Clé primaire)
-├─ nom (p. ex., Amoxicilline)
-├─ description (p. ex., Antibiotique)
-├─ forme (capsule, liquide, etc.)
-├─ dosage
-├─ fournisseur
-├─ prix_unitaire
-├─ stock_disponible
-├─ date_expiration
-├─ créé_le
-└─ mis_à_jour_le
+├─ ordonnance_id (FK → ordonnances)
+├─ medicament_id (FK → medicaments)
+├─ frequence (ex: "2 fois par jour")
+├─ duree_jours
+└─ instructions_speciales (texte, nullable)
 
-TABLE FACTURES (Invoices)
+TABLE MEDICAMENTS
 ├─ id (Clé primaire)
-├─ numéro_facture (unique, auto-incrémenté)
-├─ visite_id (FK → Visites)
-├─ patient_id (FK → Patients)
+├─ nom (ex: Amoxicilline)
+├─ description (nullable)
+├─ forme (nullable)
+├─ dosage (nullable)
+├─ cree_le
+└─ mis_a_jour_le
+
+TABLE FACTURES
+├─ id (Clé primaire)
+├─ numero_facture (unique)
+├─ visite_id (FK → visites)
+├─ patient_id (FK → patients)
+├─ secretaire_id (FK → secretaires, nullable)
 ├─ date_facture
-├─ frais_visite_base (fixe)
-├─ frais_opérations (total des opérations coût)
+├─ frais_visite_base
+├─ frais_operations
 ├─ montant_total (auto-calculé)
-├─ statut (enum: EN_ATTENTE, PAYÉE, ANNULÉE)
-├─ date_paiement (NULL si non payé)
-├─ sécrétaire_id (FK → Secrétaires, si confirmé)
-└─ notes
+├─ statut (enum: en_attente, payee, annulee, partiellement_payee)
+├─ date_paiement (nullable)
+└─ notes (nullable)
 
-TABLE PAIEMENTS (Payments)
+TABLE PAIEMENTS
 ├─ id (Clé primaire)
-├─ facture_id (FK → Factures)
-├─ montant_reçu
+├─ facture_id (FK → factures)
+├─ secretaire_id (FK → secretaires, nullable)
+├─ montant_recu
 ├─ date_paiement
-├─ méthode_paiement (enum: ESPÈCES, CHÈQUE, VIREMENT)
-├─ numéro_reçu
-├─ secrétaire_id (FK → Secrétaires)
-└─ notes
+├─ methode_paiement (enum: especes, carte, virement, cheque)
+├─ numero_recu (nullable)
+└─ notes (nullable)
 
-TABLE AUDIT (Audit Trail)
+TABLE AUDITS
 ├─ id (Clé primaire)
-├─ utilisateur_id (FK → Utilisateurs)
-├─ action (enum: CREATE, READ, UPDATE, DELETE)
-├─ table_affectée (p. ex., rendez_vous, visite)
-├─ ID_enregistrement_affecté
-├─ ancienne_valeur (JSON, optionnel)
-├─ nouvelle_valeur (JSON, optionnel)
-├─ timestamp
-└─ adresse_ip
+├─ utilisateur_id (FK → utilisateurs, nullable)
+├─ action (enum: create, update, delete, login, logout)
+├─ table_affectee (ex: rendez_vous, visites, ordonnances, factures)
+├─ id_enregistrement (nullable)
+├─ ancienne_valeur (JSON, nullable)
+├─ nouvelle_valeur (JSON, nullable)
+├─ horodatage
+└─ adresse_ip (nullable)
+
+TABLE NOTIFICATIONS  ← in-app, par utilisateur
+├─ id (Clé primaire)
+├─ utilisateur_id (FK → utilisateurs)
+├─ type (enum: rdv_confirme, rdv_rejete, paiement_recu)
+├─ titre
+├─ message
+├─ donnees (JSON, nullable)  ← ex: rendezvous_id, facture_id
+├─ lu (boolean, défaut false)
+└─ lu_le (datetime, nullable)
 
 ================================================================================
 SECTION 6: PROTOTYPES D'INTERFACE UTILISATEUR (WIREFRAMES)
@@ -970,60 +983,59 @@ DevOps & Outils :
 ──────────────────────────────────
 
 Authentification :
-├─ POST /api/auth/register (créer un compte)
-├─ POST /api/auth/login (connexion)
-├─ POST /api/auth/logout (déconnexion)
-├─ POST /api/auth/refresh-token (renouveler le jeton)
-└─ GET /api/auth/profile (récupérer le profil)
+├─ POST /register (créer un compte patient)
+├─ POST /login (connexion)
+├─ POST /logout (déconnexion)
+└─ GET /profile (récupérer le profil connecté)
 
 Gestion des patients :
-├─ GET /api/patients/:id (récupérer les détails)
-├─ PUT /api/patients/:id (mettre à jour les détails)
-└─ GET /api/patients/:id/history (historique des visites)
+├─ GET /api/patients (liste — secrétaire/dentiste)
+├─ GET /api/patients/{id} (profil complet)
+├─ PUT /api/patients/{id} (modifier profil)
+└─ GET /api/patients/{id}/history (visites + ordonnances + factures)
 
 Gestion des rendez-vous :
-├─ POST /api/reservations (créer une réservation)
-├─ GET /api/reservations/:id (détails de la réservation)
-├─ GET /api/reservations (liste des réservations du patient)
-├─ PUT /api/reservations/:id (mettre à jour)
-├─ DELETE /api/reservations/:id (supprimer/annuler)
-├─ PUT /api/reservations/:id/confirm (confirmation par secrétaire)
-├─ GET /api/appointments/available-slots (créneaux disponibles)
-└─ GET /api/dentist/schedule (horaire du dentiste)
+├─ POST /api/rendez-vous (créer — patient)
+├─ GET /api/rendez-vous (liste selon rôle)
+├─ GET /api/rendez-vous/{id} (détails)
+├─ DELETE /api/rendez-vous/{id} (annuler si en_attente — patient)
+├─ PUT /api/rendez-vous/{id}/confirm (confirmer — secrétaire)
+├─ PUT /api/rendez-vous/{id}/reject (rejeter avec raison — secrétaire)
+├─ GET /api/rendez-vous/available-slots?date=YYYY-MM-DD (créneaux libres)
+└─ GET /api/dentiste/schedule (RDV confirmés du jour — dentiste)
 
 Gestion des visites :
-├─ POST /api/visits (créer une visite)
-├─ GET /api/visits/:id (détails de la visite)
-├─ PUT /api/visits/:id (mettre à jour)
-├─ GET /api/patient/:id/visits (historique des visites du patient)
-└─ GET /api/dentist/visits/today (visites d'aujourd'hui)
+├─ POST /api/visites (créer depuis RDV confirmé — dentiste)
+├─ GET /api/visites/{id} (détails avec opérations, ordonnance, facture)
+├─ GET /api/patient/{id}/visites (historique patient)
+└─ GET /api/dentiste/visites/today (visites du jour)
+
+Gestion des opérations (catalogue) :
+├─ GET /api/operations (liste catalogue — tous connectés)
+└─ PUT /api/operations/{id} (modifier tarif — secrétaire)
+
+Gestion des médicaments :
+├─ GET /api/medicaments (liste — dentiste/secrétaire)
+├─ POST /api/medicaments (ajouter — secrétaire)
+├─ PUT /api/medicaments/{id} (modifier — secrétaire)
+└─ DELETE /api/medicaments/{id} (supprimer — secrétaire)
 
 Gestion des ordonnances :
-├─ POST /api/prescriptions (créer une ordonnance)
-├─ GET /api/prescriptions/:id (détails)
-├─ GET /api/patient/:id/prescriptions (list)
-├─ PUT /api/prescriptions/:id (mise à jour)
-├─ DELETE /api/prescriptions/:id (supprimer)
-├─ GET /api/prescriptions/:id/pdf (exporter en PDF)
-└─ GET /api/medications (liste des médicaments)
+├─ POST /api/ordonnances (créer liée à visite — dentiste)
+├─ GET /api/ordonnances/{id} (détails avec médicaments)
+└─ GET /api/patient/{id}/ordonnances (liste + filtre statut)
 
 Gestion des factures :
-├─ POST /api/invoices (créer une facture)
-├─ GET /api/invoices/:id (détails)
-├─ GET /api/patient/:id/invoices (list)
-├─ PUT /api/invoices/:id/payment (confirmer le paiement)
-├─ GET /api/invoices/:id/pdf (exporter en PDF)
-└─ GET /api/admin/invoices/report (rapport financier)
+├─ GET /api/factures (liste toutes — secrétaire)
+├─ GET /api/factures/report (rapport revenus — secrétaire)
+├─ GET /api/factures/{id} (détails)
+├─ GET /api/patient/{id}/factures (liste patient)
+└─ POST /api/factures/{id}/payment (enregistrer paiement — secrétaire)
 
-Gestion administrative :
-├─ GET /api/medications (liste)
-├─ POST /api/medications (ajouter)
-├─ PUT /api/medications/:id (mettre à jour)
-├─ DELETE /api/medications/:id (supprimer)
-├─ GET /api/operations (liste des opérations)
-├─ POST /api/operations (ajouter)
-├─ GET /api/users (gestion des utilisateurs)
-└─ GET /api/audit/logs (historique d'audit)
+Notifications :
+├─ GET /api/notifications (liste notifications user connecté)
+├─ PATCH /api/notifications/read-all (tout marquer lu)
+└─ PATCH /api/notifications/{id}/read (marquer une notification lue)
 
 ================================================================================
 SECTION 9: CALENDRIER DE DÉVELOPPEMENT (5 SEMAINES)

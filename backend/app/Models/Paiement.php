@@ -1,0 +1,18 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Paiement extends Model
+{
+    protected $fillable = [
+        'facture_id',
+        'secretaire_id',
+        'montant_recu',
+        'date_paiement',
+        'methode_paiement',
+        'numero_recu',
+        'notes',
+    ];
+}

@@ -1,15 +1,16 @@
 %% Diagramme d'activités — Système de Gestion de Clinique Dentaire
 %% Couvre : Inscription, Réservation de rendez-vous, Confirmation secrétaire,
-%%          Enregistrement de visite dentiste, Ordonnance, Facturation, Paiement
+%%          Enregistrement de visite dentiste, Ordonnance, Facturation, Paiement,
+%%          Notifications in-app, Audit trail
 
 flowchart TD
 
     %% ─── INSCRIPTION PATIENT ────────────────────────────────────────
     A([Visiteur ouvre le site]) --> B[Cliquer sur S'inscrire]
-    B --> C[Remplir le formulaire d'inscription\nnom · téléphone · adresse · DDN · email · mot de passe]
+    B --> C[Remplir le formulaire d'inscription\nnom · prénom · téléphone · adresse · DDN · email · mot de passe]
     C --> D{Formulaire valide?}
     D -- Non --> C
-    D -- Oui --> E[Créer le compte\nStatut = ACTIF]
+    D -- Oui --> E[Créer le compte\nStatut = actif]
     E --> F[Redirection vers la connexion]
 
     %% ─── CONNEXION ───────────────────────────────────────────────────
@@ -29,19 +30,22 @@ flowchart TD
     L --> M[Patient sélectionne un créneau horaire]
     M --> N[Optionnel : ajouter des notes / raison de visite]
     N --> O[Soumettre la réservation]
-    O --> P[Statut rendez-vous = EN_ATTENTE]
-    P --> Q[Message de confirmation affiché au patient]
+    O --> P[Statut rendez-vous = en_attente]
+    P --> AUDIT_RDV[🔍 Audit : CREATE rendez_vous]
+    AUDIT_RDV --> Q[Message de confirmation affiché au patient]
 
     %% Annulation de rendez-vous en attente
     I --> I1[Voir mes rendez-vous]
-    I1 --> I2{Statut = EN_ATTENTE?}
-    I2 -- Oui --> I3[Annuler le rendez-vous\nStatut = ANNULÉ]
+    I1 --> I2{Statut = en_attente?}
+    I2 -- Oui --> I3[Annuler le rendez-vous\nStatut = annule]
+    I3 --> AUDIT_CANCEL[🔍 Audit : UPDATE rendez_vous]
     I2 -- Non --> I4[Consultation uniquement — annulation impossible]
 
     %% Vues patient
     I --> V1[Voir l'historique des visites]
     I --> V2[Voir les ordonnances\nTélécharger en PDF]
     I --> V3[Voir les factures\nTélécharger en PDF]
+    I --> V4[🔔 Voir mes notifications]
 
     %% ═══════════════════════════════════════════════════════════════════
     %% FLUX SECRÉTAIRE — CONFIRMATION DES RENDEZ-VOUS
@@ -50,22 +54,29 @@ flowchart TD
     S2 --> S3[Sélectionner un rendez-vous à examiner]
     S3 --> S4[Vérifier les détails du patient et le créneau]
     S4 --> S5{Conflit de créneau?}
-    S5 -- Oui --> S6[Rejeter le rendez-vous\nStatut = ANNULÉ\nEnvoyer email d'annulation]
+    S5 -- Oui --> S6[Rejeter le rendez-vous\nStatut = annule]
     S5 -- Non --> S7{Confirmer ou Rejeter?}
-    S7 -- Confirmer --> S8[Statut = CONFIRMÉ\nEnvoyer email de confirmation au patient]
+    S7 -- Confirmer --> S8[Statut = confirme]
+    S8 --> AUDIT_CONFIRM[🔍 Audit : UPDATE rendez_vous]
+    AUDIT_CONFIRM --> NOTIF_CONFIRM[🔔 Notification patient : RDV confirmé\nType = rdv_confirme]
     S7 -- Rejeter --> S6
+    S6 --> AUDIT_REJECT[🔍 Audit : UPDATE rendez_vous]
+    AUDIT_REJECT --> NOTIF_REJECT[🔔 Notification patient : RDV annulé\nType = rdv_rejete · raison incluse]
 
     %% Secrétaire — confirmation de paiement
     S1 --> S9[Voir les factures en attente]
     S9 --> S10[Patient paie en espèces à la clinique]
-    S10 --> S11[Secrétaire marque la facture PAYÉE]
-    S11 --> S12[Générer le reçu\nEnvoyer email de confirmation au patient]
+    S10 --> S11[Secrétaire enregistre le paiement]
+    S11 --> AUDIT_PAY1[🔍 Audit : CREATE paiements]
+    AUDIT_PAY1 --> S11b[Marquer la facture PAYÉE]
+    S11b --> AUDIT_PAY2[🔍 Audit : UPDATE factures]
+    AUDIT_PAY2 --> NOTIF_PAY[🔔 Notification patient : paiement reçu\nType = paiement_recu · numéro facture · montant]
 
     %% Secrétaire — gestion des médicaments
     S1 --> S13[Gérer la liste des médicaments\nAjouter / Modifier des médicaments]
 
-    %% Secrétaire — gestion des tarifs des opérations
-    S1 --> S14[Voir les opérations dentaires]
+    %% Secrétaire — gestion des tarifs du catalogue
+    S1 --> S14[Voir le catalogue des opérations]
     S14 --> S15[Modifier le tarif d'une opération\nex: Détartrage · Remplissage · etc.]
     S15 --> S16[Enregistrer le nouveau tarif]
 
@@ -76,31 +87,36 @@ flowchart TD
     D2 --> D3[Patient arrive à la clinique]
     D3 --> D4[Sélectionner le rendez-vous confirmé]
     D4 --> D5[Saisir les détails de la visite :\nDiagnostic · Traitement · Notes]
-    D5 --> D6[Ajouter les opérations dentaires\nDétartrage · Remplissage · etc. avec coûts]
+    D5 --> D6[Ajouter les opérations dentaires\navec coûts snapshot]
     D6 --> D7[Cliquer sur Marquer comme complété]
-    D7 --> D8[Système crée l'enregistrement VISITE\nStatut rendez-vous = COMPLÉTÉ]
-    D8 --> D9[Système génère automatiquement la FACTURE\nTotal = Frais de base + Coût des opérations\nStatut facture = EN_ATTENTE]
+    D7 --> D8[Système crée l'enregistrement VISITE\nStatut rendez-vous = complete]
+    D8 --> AUDIT_VISITE[🔍 Audit : CREATE visites]
+    AUDIT_VISITE --> D9[Système génère automatiquement la FACTURE\nTotal = Frais de base + Coût des opérations\nStatut facture = en_attente]
 
     %% Ordonnance — branche optionnelle
     D9 --> D10{Émettre une ordonnance?}
     D10 -- Oui --> D11[Sélectionner les médicaments dans la liste]
     D11 --> D12[Définir la fréquence + durée par médicament]
     D12 --> D13[Ajouter des instructions générales optionnel]
-    D13 --> D14[Enregistrer l'ordonnance\nStatut = ACTIF]
-    D14 --> D15[Visite entièrement enregistrée]
+    D13 --> D14[Enregistrer l'ordonnance\nStatut = active]
+    D14 --> AUDIT_ORD[🔍 Audit : CREATE ordonnances]
+    AUDIT_ORD --> D15[Visite entièrement enregistrée]
     D10 -- Non --> D15
 
-    D15 --> D16[Patient peut consulter :\nDétails visite · Facture · Ordonnance PDF]
+    D15 --> D16[Patient peut consulter :\nDétails visite · Facture · Ordonnance]
 
     %% ─── STYLES ──────────────────────────────────────────────────────
     classDef patient    fill:#3b82f6,color:#fff,stroke:#1d4ed8
     classDef secretaire fill:#10b981,color:#fff,stroke:#047857
     classDef dentiste   fill:#f59e0b,color:#fff,stroke:#b45309
     classDef systeme    fill:#8b5cf6,color:#fff,stroke:#6d28d9
-    classDef decision   fill:#f3f4f6,color:#111,stroke:#6b7280
+    classDef audit      fill:#64748b,color:#fff,stroke:#334155
+    classDef notif      fill:#ec4899,color:#fff,stroke:#9d174d
 
-    class I,I1,I2,I3,I4,J,K,M,N,O,V1,V2,V3 patient
-    class S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16 secretaire
+    class I,I1,I2,I3,I4,J,K,M,N,O,V1,V2,V3,V4 patient
+    class S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S11b,S13,S14,S15,S16 secretaire
     class D1,D2,D3,D4,D5,D6,D7,D11,D12,D13 dentiste
     class P,D8,D9,D14,D15,D16,E systeme
     class D,H,I2,S5,S7,D10 decision
+    class AUDIT_RDV,AUDIT_CANCEL,AUDIT_CONFIRM,AUDIT_REJECT,AUDIT_PAY1,AUDIT_PAY2,AUDIT_VISITE,AUDIT_ORD audit
+    class NOTIF_CONFIRM,NOTIF_REJECT,NOTIF_PAY notif
