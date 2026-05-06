@@ -8,6 +8,7 @@ use App\Models\Secretaire;
 use App\Models\Dentiste;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -94,5 +95,53 @@ class AuthController extends Controller
             ],
             'profile' => $data,
         ]);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->role === 'patient') {
+            $patient = Patient::where('utilisateur_id', $user->id)->firstOrFail();
+            $patient->update($request->only([
+                'nom', 'prenom', 'telephone', 'adresse',
+                'date_naissance', 'sexe', 'contact_urgence', 'notes_generales',
+            ]));
+            return response()->json(['profile' => $patient->fresh()]);
+        }
+
+        if ($user->role === 'dentiste') {
+            $dentiste = Dentiste::where('utilisateur_id', $user->id)->firstOrFail();
+            $dentiste->update($request->only(['nom', 'prenom', 'telephone', 'specialite']));
+            return response()->json(['profile' => $dentiste->fresh()]);
+        }
+
+        if ($user->role === 'secretaire') {
+            $sec = Secretaire::where('utilisateur_id', $user->id)->firstOrFail();
+            $sec->update($request->only(['nom', 'prenom', 'telephone']));
+            return response()->json(['profile' => $sec->fresh()]);
+        }
+
+        abort(403);
+    }
+
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'ancien'  => 'required',
+            'nouveau' => 'required|min:6',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($request->ancien, $user->password)) {
+            throw ValidationException::withMessages([
+                'ancien' => 'Ancien mot de passe incorrect.',
+            ]);
+        }
+
+        $user->update(['password' => Hash::make($request->nouveau)]);
+
+        return response()->json(['message' => 'Mot de passe modifié avec succès.']);
     }
 }

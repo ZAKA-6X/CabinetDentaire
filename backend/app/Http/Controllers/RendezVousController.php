@@ -13,48 +13,46 @@ use Carbon\Carbon;
 
 class RendezVousController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $role   = session('role');
-        $userId = session('user');
+        $user = $request->user();
 
-        $rdvs = match($role) {
-            'patient' => RendezVous::where('patient_id',
-                Patient::where('utilisateur_id', $userId)->value('id')
-            )->get(),
+        $rdvs = match($user->role) {
+            'patient' => RendezVous::with('patient')
+                ->where('patient_id', Patient::where('utilisateur_id', $user->id)->value('id'))
+                ->orderByDesc('date_heure')->get(),
 
-            'dentiste' => RendezVous::where('statut', 'confirme')
-                ->where('dentiste_id',
-                    Dentiste::where('utilisateur_id', $userId)->value('id')
-                )->get(),
+            'dentiste' => RendezVous::with('patient')
+                ->where('statut', 'confirme')
+                ->where('dentiste_id', Dentiste::where('utilisateur_id', $user->id)->value('id'))
+                ->orderBy('date_heure')->get(),
 
-            'secretaire' => RendezVous::all(),
+            'secretaire' => RendezVous::with('patient')->orderByDesc('date_heure')->get(),
 
             default => abort(403),
         };
 
-        return response()->json($rdvs);
+        return response()->json($rdvs->map->toFrontend()->values());
     }
 
     public function store(Request $request)
     {
-        if (session('role') !== 'patient') {
-            abort(403);
-        }
+        if ($request->user()->role !== 'patient') abort(403);
 
         $request->validate([
-            'date_heure' => 'required|date|after:now',
-            'duree'      => 'nullable|integer|min:15',
-            'raison'     => 'nullable|string',
+            'date'   => 'required|date_format:Y-m-d',
+            'heure'  => 'required|date_format:H:i',
+            'duree'  => 'nullable|integer|min:15',
+            'raison' => 'nullable|string',
         ]);
 
-        $patientId  = Patient::where('utilisateur_id', session('user'))->value('id');
+        $patientId  = Patient::where('utilisateur_id', $request->user()->id)->value('id');
         $dentisteId = Dentiste::value('id');
 
         $rdv = RendezVous::create([
             'patient_id'  => $patientId,
             'dentiste_id' => $dentisteId,
-            'date_heure'  => $request->date_heure,
+            'date_heure'  => $request->date . ' ' . $request->heure . ':00',
             'duree'       => $request->duree ?? 30,
             'raison'      => $request->raison,
             'statut'      => 'en_attente',
@@ -62,36 +60,33 @@ class RendezVousController extends Controller
 
         AuditService::log('create', 'rendez_vous', $rdv->id, null, $rdv->toArray());
 
-        return response()->json($rdv, 201);
+        return response()->json($rdv->load('patient')->toFrontend(), 201);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $role   = session('role');
-        $userId = session('user');
-        $rdv    = RendezVous::findOrFail($id);
+        $user = $request->user();
+        $rdv  = RendezVous::with('patient')->findOrFail($id);
 
-        if ($role === 'patient') {
-            $patientId = Patient::where('utilisateur_id', $userId)->value('id');
+        if ($user->role === 'patient') {
+            $patientId = Patient::where('utilisateur_id', $user->id)->value('id');
             if ($rdv->patient_id !== $patientId) abort(403);
         }
 
-        if ($role === 'dentiste') {
-            $dentisteId = Dentiste::where('utilisateur_id', $userId)->value('id');
+        if ($user->role === 'dentiste') {
+            $dentisteId = Dentiste::where('utilisateur_id', $user->id)->value('id');
             if ($rdv->dentiste_id !== $dentisteId) abort(403);
         }
 
-        return response()->json($rdv);
+        return response()->json($rdv->toFrontend());
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        if (session('role') !== 'patient') {
-            abort(403);
-        }
+        if ($request->user()->role !== 'patient') abort(403);
 
         $rdv       = RendezVous::findOrFail($id);
-        $patientId = Patient::where('utilisateur_id', session('user'))->value('id');
+        $patientId = Patient::where('utilisateur_id', $request->user()->id)->value('id');
 
         if ($rdv->patient_id !== $patientId) abort(403);
         if ($rdv->statut !== 'en_attente') abort(422, 'Impossible d\'annuler un RDV déjà traité.');
@@ -103,15 +98,12 @@ class RendezVousController extends Controller
         return response()->json(['message' => 'Rendez-vous annulé.']);
     }
 
-    public function confirm($id)
+    public function confirm(Request $request, $id)
     {
-        if (session('role') !== 'secretaire') {
-            abort(403);
-        }
+        if ($request->user()->role !== 'secretaire') abort(403);
 
-        $rdv = RendezVous::findOrFail($id);
-
-        $secretaireId = Secretaire::where('utilisateur_id', session('user'))->value('id');
+        $rdv          = RendezVous::with('patient')->findOrFail($id);
+        $secretaireId = Secretaire::where('utilisateur_id', $request->user()->id)->value('id');
 
         $old = $rdv->toArray();
         $rdv->update([
@@ -123,80 +115,66 @@ class RendezVousController extends Controller
         NotificationService::rdvConfirme($rdv->fresh());
         AuditService::log('update', 'rendez_vous', $rdv->id, $old, $rdv->fresh()->toArray());
 
-        return response()->json($rdv->fresh());
+        return response()->json($rdv->fresh()->load('patient')->toFrontend());
     }
 
     public function reject(Request $request, $id)
     {
-        if (session('role') !== 'secretaire') {
-            abort(403);
-        }
+        if ($request->user()->role !== 'secretaire') abort(403);
 
-        $request->validate([
-            'raison' => 'required|string',
-        ]);
+        $request->validate(['raison' => 'required|string']);
 
-        $rdv = RendezVous::findOrFail($id);
-
+        $rdv = RendezVous::with('patient')->findOrFail($id);
         $old = $rdv->toArray();
-        $rdv->update([
-            'statut' => 'annule',
-            'notes'  => $request->raison,
-        ]);
+
+        $rdv->update(['statut' => 'annule', 'notes' => $request->raison]);
 
         NotificationService::rdvRejete($rdv->fresh(), $request->raison);
         AuditService::log('update', 'rendez_vous', $rdv->id, $old, $rdv->fresh()->toArray());
 
-        return response()->json($rdv->fresh());
+        return response()->json($rdv->fresh()->load('patient')->toFrontend());
     }
 
     public function availableSlots(Request $request)
     {
-        $request->validate([
-            'date' => 'required|date_format:Y-m-d',
-        ]);
+        $request->validate(['date' => 'required|date_format:Y-m-d']);
 
         $date       = $request->date;
-        $dentisteId = Dentiste::value('id'); // single dentiste app
+        $dentisteId = Dentiste::value('id');
 
-        // fetch all booked time slots for that day (ignore annule/complete)
         $taken = RendezVous::where('dentiste_id', $dentisteId)
             ->whereDate('date_heure', $date)
             ->whereIn('statut', ['en_attente', 'confirme'])
             ->pluck('date_heure')
-            ->map(fn($d) => Carbon::parse($d)->format('H:i')) // keep "HH:MM" only
+            ->map(fn($d) => Carbon::parse($d)->format('H:i'))
             ->toArray();
 
-        // generate all 30-min slots from 09:00 to 17:00, exclude taken ones
         $slots = [];
         $start = Carbon::parse("$date 09:00");
         $end   = Carbon::parse("$date 17:00");
 
         while ($start < $end) {
             $slot = $start->format('H:i');
-            if (!in_array($slot, $taken)) {
-                $slots[] = $slot;
-            }
+            if (!in_array($slot, $taken)) $slots[] = $slot;
             $start->addMinutes(30);
         }
 
         return response()->json(['date' => $date, 'slots' => $slots]);
     }
 
-    public function dentisteSchedule()
+    public function dentisteSchedule(Request $request)
     {
-        if (session('role') !== 'dentiste') {
-            abort(403);
-        }
+        if ($request->user()->role !== 'dentiste') abort(403);
 
-        $dentisteId = Dentiste::where('utilisateur_id', session('user'))->value('id');
+        $dentisteId = Dentiste::where('utilisateur_id', $request->user()->id)->value('id');
 
-        $rdvs = RendezVous::where('dentiste_id', $dentisteId)
+        $rdvs = RendezVous::with('patient')
+            ->where('dentiste_id', $dentisteId)
             ->where('statut', 'confirme')
             ->whereDate('date_heure', today())
             ->orderBy('date_heure')
             ->get();
 
-        return response()->json($rdvs);
+        return response()->json($rdvs->map->toFrontend()->values());
     }
 }
