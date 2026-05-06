@@ -3,7 +3,10 @@
     "allow": [
       "Bash(php artisan *)",
       "Bash(Get-ChildItem C:\\\\xampp\\\\htdocs\\\\Cabinet Dentaire\\\\backend\\\\app\\\\Http\\\\Controllers\\\\Auth *)",
-      "Bash(composer require *)"
+      "Bash(composer require *)",
+      "Bash(Get-ChildItem \"C:\\\\xampp\\\\htdocs\\\\Cabinet Dentaire\\\\backend\\\\database\\\\migrations\")",
+      "Bash(Select-Object Name)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\xampp\\\\htdocs\\\\Cabinet Dentaire\\\\frontend\\\\src\" -Recurse -Force | ForEach-Object { $_.FullName } | Sort-Object)"
     ]
   }
 }

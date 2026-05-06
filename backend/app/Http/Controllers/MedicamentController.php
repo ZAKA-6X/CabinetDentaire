@@ -7,20 +7,17 @@ use Illuminate\Http\Request;
 
 class MedicamentController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        if (!in_array(session('role'), ['dentiste', 'secretaire'])) {
-            abort(403);
-        }
+        $role = $request->user()->role;
+        if (!in_array($role, ['dentiste', 'secretaire'])) abort(403);
 
         return response()->json(Medicament::all());
     }
 
     public function store(Request $request)
     {
-        if (session('role') !== 'secretaire') {
-            abort(403);
-        }
+        if ($request->user()->role !== 'secretaire') abort(403);
 
         $request->validate([
             'nom'         => 'required|string',
@@ -36,9 +33,7 @@ class MedicamentController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (session('role') !== 'secretaire') {
-            abort(403);
-        }
+        if ($request->user()->role !== 'secretaire') abort(403);
 
         $request->validate([
             'nom'         => 'sometimes|required|string',
@@ -53,11 +48,9 @@ class MedicamentController extends Controller
         return response()->json($medicament);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        if (session('role') !== 'secretaire') {
-            abort(403);
-        }
+        if ($request->user()->role !== 'secretaire') abort(403);
 
         Medicament::findOrFail($id)->delete();
 

@@ -38,11 +38,14 @@ function ManageAppointments() {
     applyFilters(filter, val)
   }
 
+  const patientName = (rdv) =>
+    `${rdv.patient?.prenom || ''} ${rdv.patient?.nom || ''}`.trim() || '—'
+
   const applyFilters = (statut, searchVal) => {
     let result = appointments
     if (statut) result = result.filter(r => r.statut === statut)
     if (searchVal) result = result.filter(r =>
-      r.patient?.nom_complet?.toLowerCase().includes(searchVal.toLowerCase())
+      patientName(r).toLowerCase().includes(searchVal.toLowerCase())
     )
     setFiltered(result)
   }
@@ -50,31 +53,24 @@ function ManageAppointments() {
   // ─── Confirmer RDV ───
   const handleConfirm = async (id) => {
     try {
-      await api.put(`/rendez-vous/${id}/confirm`)
-      const updated = appointments.map(r =>
-        r.id === id ? { ...r, statut: 'CONFIRMÉ' } : r
-      )
+      const res = await api.put(`/rendez-vous/${id}/confirm`)
+      const updated = appointments.map(r => r.id === id ? res.data : r)
       setAppointments(updated)
       setFiltered(updated)
-      alert('✅ RDV confirmé — Email envoyé au patient')
     } catch (err) {
       alert('Erreur lors de la confirmation')
     }
   }
 
-  // ─── Rejeter RDV ───
   const handleReject = async () => {
     if (!raison) { alert('Entrez une raison'); return }
     try {
-      await api.put(`/rendez-vous/${rejectModal}/reject`, { raison })
-      const updated = appointments.map(r =>
-        r.id === rejectModal ? { ...r, statut: 'ANNULÉ' } : r
-      )
+      const res = await api.put(`/rendez-vous/${rejectModal}/reject`, { raison })
+      const updated = appointments.map(r => r.id === rejectModal ? res.data : r)
       setAppointments(updated)
       setFiltered(updated)
       setRejectModal(null)
       setRaison('')
-      alert('RDV rejeté — Email envoyé au patient')
     } catch (err) {
       alert('Erreur lors du rejet')
     }
@@ -109,7 +105,7 @@ function ManageAppointments() {
               value={search}
               onChange={e => handleSearch(e.target.value)}
             />
-            {['', 'EN_ATTENTE', 'CONFIRMÉ', 'ANNULÉ', 'COMPLÉTÉ'].map(s => (
+            {['', 'EN_ATTENTE', 'CONFIRMÉ', 'ANNULÉ', 'COMPLÉTÉ'].map((s) => (
               <button
                 key={s}
                 onClick={() => handleFilter(s)}
@@ -146,7 +142,7 @@ function ManageAppointments() {
                 {filtered.map(rdv => (
                   <tr key={rdv.id}>
                     <td style={styles.td}>
-                      <strong>{rdv.patient?.nom_complet}</strong>
+                      <strong>{patientName(rdv)}</strong>
                       <br />
                       <small style={{ color: '#94A3B8' }}>
                         {rdv.patient?.telephone}
@@ -156,7 +152,7 @@ function ManageAppointments() {
                       {rdv.date}
                       <br />
                       <small style={{ color: '#94A3B8' }}>
-                        {rdv.heure?.slice(0, 5)}
+                        {rdv.heure}
                       </small>
                     </td>
                     <td style={styles.td}>{rdv.notes || '—'}</td>

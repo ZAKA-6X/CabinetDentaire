@@ -14,31 +14,31 @@ function Login() {
   const navigate = useNavigate()
   const { login } = useAuth()
 
-  // ─── Fonction soumission formulaire ───
-  const handleSubmit = async (e) => {
-    e.preventDefault() // Empêcher refresh de la page
+  const doLogin = async (e, overrideEmail, overridePassword) => {
+    if (e) e.preventDefault()
     setError('')
     setLoading(true)
 
+    const credentials = {
+      email: overrideEmail ?? email,
+      password: overridePassword ?? password,
+    }
+
     try {
-      // Appel API login vers backend
-      const response = await api.post('/login', { email, password })
+      const response = await api.post('/login', credentials)
       const { token, user } = response.data
-
-      // Sauvegarder dans AuthContext
       login(user, token)
-
-      // Redirection selon le rôle
       if (user.role === 'PATIENT') navigate('/patient/dashboard')
       else if (user.role === 'SECRETAIRE') navigate('/secretaire/dashboard')
       else if (user.role === 'DENTISTE') navigate('/dentiste/dashboard')
-
     } catch (err) {
       setError('Email ou mot de passe incorrect')
     } finally {
       setLoading(false)
     }
   }
+
+  const handleSubmit = (e) => doLogin(e)
 
   // ─── Design de la page ───
   return (
@@ -115,13 +115,13 @@ function Login() {
 </div>
 
 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '1rem' }}>
-  <button style={styles.btnDemo} onClick={() => { setEmail('patient@demo.com'); setPassword('password') }}>
+  <button type="button" style={styles.btnDemo} onClick={() => doLogin(null, 'patient@clinic.ma', 'password')}>
     👤 Patient
   </button>
-  <button style={styles.btnDemo} onClick={() => { setEmail('secretaire@demo.com'); setPassword('password') }}>
+  <button type="button" style={styles.btnDemo} onClick={() => doLogin(null, 'secretaire@clinic.ma', 'password')}>
     👩‍💼 Secrétaire
   </button>
-  <button style={styles.btnDemo} onClick={() => { setEmail('dentiste@demo.com'); setPassword('password') }}>
+  <button type="button" style={styles.btnDemo} onClick={() => doLogin(null, 'dentiste@clinic.ma', 'password')}>
     🦷 Dentiste
   </button>
 </div>

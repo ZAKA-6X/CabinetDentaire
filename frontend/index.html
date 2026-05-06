@@ -1,10 +1,48 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>Clinique Dentaire</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      :root {
+        --bg: #f4f1ea;
+        --surface: #fbf8f2;
+        --card: #ffffff;
+        --ink: #1a201f;
+        --ink-2: #46504d;
+        --ink-3: #7d8682;
+        --line: #e3ddd0;
+        --line-strong: #c9c1ae;
+        --accent: #0f4842;
+        --accent-2: #1d6e66;
+        --accent-soft: #dfe9e6;
+        --gold: #b5894a;
+        --amber-soft: #f1e4cf;
+        --rose: #b44a4a;
+        --rose-soft: #f2dede;
+        --success: #2e6e4a;
+        --success-soft: #d9e8df;
+        --radius: 14px;
+        --radius-sm: 8px;
+      }
+      html, body {
+        margin: 0; padding: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+      button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+      input, textarea, select { font-family: inherit; color: inherit; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
