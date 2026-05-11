@@ -91,7 +91,7 @@ function ManageAppointments() {
     <Layout>
   <div>
         <div style={styles.welcome}>
-          <h2 style={styles.title}>📋 Gestion des rendez-vous</h2>
+          <h2 style={styles.title}> Gestion des <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>rendez-vous</em></h2>
           <p style={styles.sub}>Confirmez ou rejetez les demandes</p>
         </div>
 

@@ -42,7 +42,7 @@ function ManageOperations() {
     <Layout>
   <div>
         <div style={styles.welcome}>
-          <h2 style={styles.title}>⚙️ Catalogue des opérations</h2>
+          <h2 style={styles.title}> Catalogue des <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>opérations</em></h2>
           <p style={styles.sub}>Gérez les tarifs des opérations dentaires</p>
         </div>
 

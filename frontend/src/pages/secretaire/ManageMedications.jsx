@@ -94,7 +94,7 @@ function ManageMedications() {
   <div>
         <div style={styles.header}>
           <div>
-            <h2 style={styles.title}>💊 Gestion des médicaments</h2>
+            <h2 style={styles.title}> Gestion des <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>médicaments</em></h2>
             <p style={styles.sub}>Ajoutez et gérez le catalogue</p>
           </div>
           <button style={styles.btnAdd} onClick={openAdd}>

@@ -42,7 +42,7 @@ function ManagePayments() {
    <Layout>
   <div>
         <div style={styles.welcome}>
-          <h2 style={styles.title}>💳 Gestion des paiements</h2>
+          <h2 style={styles.title}> Gestion des <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>paiements</em></h2>
           <p style={styles.sub}>Enregistrez les paiements des patients</p>
         </div>
 

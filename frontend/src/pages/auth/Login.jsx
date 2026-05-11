@@ -4,134 +4,161 @@ import { useAuth } from '../../context/AuthContext'
 import api from '../../api'
 
 function Login() {
-  // ─── Les données du formulaire ───
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
-  // ─── Hooks navigation et auth ───
-  const navigate = useNavigate()
   const { login } = useAuth()
+  const navigate = useNavigate()
 
-  const doLogin = async (e, overrideEmail, overridePassword) => {
-    if (e) e.preventDefault()
+  const handleSubmit = async (e) => {
+    e.preventDefault()
     setError('')
     setLoading(true)
-
-    const credentials = {
-      email: overrideEmail ?? email,
-      password: overridePassword ?? password,
-    }
-
     try {
-      const response = await api.post('/login', credentials)
+      const response = await api.post('/login', { email, password })
       const { token, user } = response.data
       login(user, token)
-      if (user.role === 'PATIENT') navigate('/patient/dashboard')
-      else if (user.role === 'SECRETAIRE') navigate('/secretaire/dashboard')
-      else if (user.role === 'DENTISTE') navigate('/dentiste/dashboard')
-    } catch (err) {
+      const routes = {
+        PATIENT: '/patient/dashboard',
+        SECRETAIRE: '/secretaire/dashboard',
+        DENTISTE: '/dentiste/dashboard',
+      }
+      navigate(routes[user.role])
+    } catch {
       setError('Email ou mot de passe incorrect')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSubmit = (e) => doLogin(e)
+  const loginAs = (role) => {
+    const creds = {
+      PATIENT: 'patient@demo.com',
+      SECRETAIRE: 'secretaire@demo.com',
+      DENTISTE: 'dentiste@demo.com',
+    }
+    setEmail(creds[role])
+    setPassword('password')
+  }
 
-  // ─── Design de la page ───
   return (
-    <div style={styles.container}>
+    <div style={styles.page}>
 
-      {/* Partie gauche — bleue */}
-      <div style={styles.left}>
-  <div style={{
-    position: 'absolute',
-    inset: 0,
-    background: 'rgba(11, 31, 58, 0.22)',
-      }}/>
-        <div style={styles.logoBox}>🦷</div>
-        <h1 style={styles.logoTitle}>Dentisto</h1>
-        <p style={styles.logoSub}>Système de gestion du cabinet dentaire</p>
+      {/* ── Background image full page ── */}
+      <div style={styles.bgImage}/>
+      <div style={styles.bgOverlay}/>
 
-        <div style={styles.features}>
-          <div style={styles.feature}> Gestion des rendez-vous</div>
-          <div style={styles.feature}> Dossiers patients numérisés</div>
-          <div style={styles.feature}> Ordonnances & prescriptions</div>
-          <div style={styles.feature}> Facturation automatisée</div>
+      {/* ── Logo en haut à gauche ── */}
+      <div style={styles.logoTop}>
+        <div style={styles.logoBox}>
+          <span style={styles.logoHZ}>HZ</span>
+        </div>
+        <div>
+          <div style={styles.logoName}>HZ Dentaire</div>
+          <div style={styles.logoSub}>Cabinet Dentaire</div>
         </div>
       </div>
 
-      {/* Partie droite — formulaire */}
-      <div style={styles.right}>
-        <div style={styles.formBox}>
-          <h2 style={styles.title}>Bon retour !</h2>
-          <p style={styles.subtitle}>Connectez-vous à votre espace</p>
+      {/* ── Slogan gauche ── */}
+      <div style={styles.sloganBox}>
+        <div style={styles.sloganTag}>✦ Excellence dentaire </div>
+        <h1 style={styles.slogan}>
+          Votre sourire,<br/>
+          <em style={styles.sloganEm}>notre priorité.</em>
+        </h1>
+        <p style={styles.sloganSub}>
+          Prenez soin de votre santé bucco-dentaire avec<br/>
+          une équipe dédiée et des soins de qualité supérieure.
+        </p>
+        <div style={styles.stats}>
+          <div style={styles.stat}>
+            <span style={styles.statNum}>500+</span>
+            <span style={styles.statLbl}>Patients</span>
+          </div>
+          <div style={styles.statDiv}/>
+          <div style={styles.stat}>
+            <span style={styles.statNum}>98%</span>
+            <span style={styles.statLbl}>Satisfaction</span>
+          </div>
+          <div style={styles.statDiv}/>
+          <div style={styles.stat}>
+            <span style={styles.statNum}>6+</span>
+            <span style={styles.statLbl}>Années</span>
+          </div>
+        </div>
+      </div>
 
-          {/* Message d'erreur */}
+      {/* ── Formulaire droite ── */}
+      <div style={styles.formPanel}>
+        <div style={styles.formInner}>
+
+          <div style={styles.formHeader}>
+            <h2 style={styles.formTitle}>Bon retour 👋</h2>
+            <p style={styles.formSub}>Connectez-vous à votre espace personnel</p>
+          </div>
+
           {error && (
-            <div style={styles.errorBox}>
-              ❌ {error}
-            </div>
+            <div style={styles.errorBox}>❌ {error}</div>
           )}
 
-          {/* Formulaire */}
           <form onSubmit={handleSubmit}>
-
             <div style={styles.formGroup}>
               <label style={styles.label}>Adresse email</label>
               <input
                 type="email"
-                placeholder="exemple@gmail.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="exemple@email.com"
                 style={styles.input}
                 required
               />
             </div>
-
             <div style={styles.formGroup}>
               <label style={styles.label}>Mot de passe</label>
               <input
                 type="password"
-                placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
                 style={styles.input}
                 required
               />
             </div>
 
-            <button
-              type="submit"
-              style={styles.btn}
-              disabled={loading}
-            >
+            <button type="submit" style={styles.btnLogin} disabled={loading}>
               {loading ? 'Connexion...' : 'Se connecter →'}
             </button>
-            <div style={{ margin: '1.5rem 0', textAlign: 'center', color: '#94A3B8', fontSize: '0.8rem' }}>
-  — Démonstration rapide —
-</div>
-
-<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '1rem' }}>
-  <button type="button" style={styles.btnDemo} onClick={() => doLogin(null, 'patient@clinic.ma', 'password')}>
-    👤 Patient
-  </button>
-  <button type="button" style={styles.btnDemo} onClick={() => doLogin(null, 'secretaire@clinic.ma', 'password')}>
-    👩‍💼 Secrétaire
-  </button>
-  <button type="button" style={styles.btnDemo} onClick={() => doLogin(null, 'dentiste@clinic.ma', 'password')}>
-    🦷 Dentiste
-  </button>
-</div>
-
           </form>
+
+          <div style={styles.divider}>
+            <span style={styles.dividerLine}/>
+            <span style={styles.dividerText}>Accès rapide</span>
+            <span style={styles.dividerLine}/>
+          </div>
+
+          <div style={styles.roleGrid}>
+            {[
+              { role: 'PATIENT', icon: '👤', label: 'Patient', color: '#dfe9e6' },
+              { role: 'SECRETAIRE', icon: '👩‍💼', label: 'Secrétaire', color: '#f1e4cf' },
+              { role: 'DENTISTE', icon: '🦷', label: 'Dentiste', color: '#dfe9e6' },
+            ].map(d => (
+              <button
+                key={d.role}
+                style={{ ...styles.roleBtn, background: d.color }}
+                onClick={() => loginAs(d.role)}
+              >
+                <span style={{ fontSize: '1.3rem' }}>{d.icon}</span>
+                <span style={styles.roleBtnLabel}>{d.label}</span>
+              </button>
+            ))}
+          </div>
 
           <p style={styles.switchText}>
             Pas encore de compte ?{' '}
-            <Link to="/register" style={styles.link}>S'inscrire</Link>
+            <Link to="/register" style={styles.link}>Créer un compte</Link>
           </p>
+
         </div>
       </div>
 
@@ -139,147 +166,273 @@ function Login() {
   )
 }
 
-// ─── Styles ───
 const styles = {
-  container: {
-    display: 'flex',
+  page: {
     minHeight: '100vh',
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'stretch',
   },
-  left: {
-  width: '45%',
-  backgroundImage: 'url(https://adent.ch/wp-content/uploads/2022/04/cdsf_page_clinique_signature.jpg)',
-  backgroundSize: 'cover',
-  backgroundPosition: 'center',
-  position: 'relative',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '3rem',
-},
-  logoBox: {
-    fontSize: '3rem',
-    background: '#00C9A7',
-    borderRadius: '20px',
-    width: '80px',
-    height: '80px',
+  bgImage: {
+    position: 'fixed',
+    inset: 0,
+    backgroundImage: 'url(https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=1400&q=90)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    zIndex: 0,
+  },
+  bgOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'linear-gradient(110deg, rgba(10,40,36,0.82) 0%, rgba(10,40,36,0.65) 50%, rgba(10,40,36,0.15) 100%)',
+    zIndex: 1,
+  },
+  logoTop: {
+    position: 'fixed',
+    top: '2rem',
+    left: '2.5rem',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: '1rem',
+    gap: '12px',
+    zIndex: 10,
   },
-  logoTitle: {
-  color: 'black',
-  fontSize: '2.5rem',
-  margin: '0 0 0.5rem',
-  fontFamily: 'Georgia, serif',
-  textShadow: '2px 2px 10px rgba(0,0,0,0.9)',  // ← zid had
-},
-logoSub: {
-  color: 'black',                             // ← bdl rgba b white
-  fontSize: '2.0rem',
-  textAlign: 'center',
-  marginBottom: '2rem',
-  textShadow: '0 2px 6px rgba(0,0,0,0.8)',  // ← zid had
-},
-feature: {
-  color: 'black',                             // ← bdl rgba b white
-  padding: '12px 0',
-  borderBottom: '1px solid rgba(0,0,0,0.1)',
-  fontSize: '0.9rem',
-  textShadow: '0 1px 4px rgba(0,0,0,0.8)',  // ← zid had
-},
-  feature: {
-    color: 'rgb(0, 0, 0)',
-    padding: '12px 0',
-    borderBottom: '1px solid rgb(38, 227, 145)',
-    fontSize: '1.5rem',
+  logoBox: {
+    width: '46px',
+    height: '46px',
+    borderRadius: '13px',
+    background: 'rgba(255,255,255,0.15)',
+    backdropFilter: 'blur(10px)',
+    border: '1.5px solid rgba(255,255,255,0.3)',
+    display: 'grid',
+    placeItems: 'center',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
   },
-  right: {
+  logoHZ: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: '600',
+    fontSize: '18px',
+    color: 'white',
+    letterSpacing: '-0.02em',
+  },
+  logoName: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: '600',
+    fontSize: '17px',
+    color: 'white',
+    letterSpacing: '-0.01em',
+    textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+  },
+  logoSub: {
+    fontSize: '10px',
+    letterSpacing: '0.15em',
+    textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.6)',
+  },
+  sloganBox: {
+    position: 'relative',
+    zIndex: 5,
     flex: 1,
     display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    padding: '8rem 3rem 3rem 3.5rem',
+    maxWidth: '55%',
+  },
+  sloganTag: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    background: 'rgba(255,255,255,0.1)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    borderRadius: '999px',
+    padding: '6px 16px',
+    fontSize: '12px',
+    color: 'rgba(255,255,255,0.9)',
+    letterSpacing: '0.04em',
+    marginBottom: '1.5rem',
+    width: 'fit-content',
+  },
+  slogan: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: '300',
+    fontSize: '52px',
+    lineHeight: '1.1',
+    color: 'white',
+    margin: '0 0 1.25rem',
+    letterSpacing: '-0.02em',
+    textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+  },
+  sloganEm: {
+    fontStyle: 'italic',
+    fontWeight: '400',
+    color: '#7dd3c8',
+  },
+  sloganSub: {
+    fontSize: '15px',
+    color: 'rgba(255,255,255,0.75)',
+    lineHeight: '1.7',
+    margin: '0 0 2.5rem',
+    maxWidth: '42ch',
+  },
+  stats: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1.5rem',
+  },
+  stat: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+  },
+  statNum: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: '28px',
+    fontWeight: '500',
+    color: 'white',
+    letterSpacing: '-0.02em',
+  },
+  statLbl: {
+    fontSize: '11px',
+    color: 'rgba(255,255,255,0.55)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.1em',
+  },
+  statDiv: {
+    width: '1px',
+    height: '36px',
+    background: 'rgba(255,255,255,0.2)',
+  },
+  formPanel: {
+    position: 'relative',
+    zIndex: 5,
+    width: '440px',
+    flexShrink: 0,
+    background: 'var(--bg, #f4f1ea)',
+    display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'white',
     padding: '2rem',
+    boxShadow: '-20px 0 80px rgba(0,0,0,0.25)',
   },
-  formBox: {
+  formInner: {
     width: '100%',
-    maxWidth: '420px',
+    maxWidth: '360px',
   },
-  title: {
-    fontSize: '1.8rem',
-    color: '#0B1F3A',
-    marginBottom: '0.3rem',
-    fontFamily: 'Georgia, serif',
-  },
-  subtitle: {
-    color: '#94A3B8',
-    fontSize: '0.9rem',
+  formHeader: {
     marginBottom: '2rem',
+  },
+  formTitle: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: '400',
+    fontSize: '2rem',
+    letterSpacing: '-0.02em',
+    color: 'var(--ink, #1a201f)',
+    margin: '0 0 6px',
+  },
+  formSub: {
+    color: 'var(--ink-3, #7d8682)',
+    fontSize: '14px',
+    margin: 0,
   },
   errorBox: {
     background: '#FEF2F2',
     border: '1px solid #FECACA',
-    color: '#EF4444',
+    color: '#991B1B',
     padding: '10px 14px',
     borderRadius: '8px',
-    fontSize: '0.85rem',
+    fontSize: '13px',
     marginBottom: '1rem',
   },
-  formGroup: {
-    marginBottom: '1.2rem',
-  },
+  formGroup: { marginBottom: '1.2rem' },
   label: {
     display: 'block',
-    fontSize: '0.85rem',
-    fontWeight: '500',
-    color: '#475569',
+    fontSize: '11px',
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: 'var(--ink-3, #7d8682)',
     marginBottom: '6px',
+    fontWeight: '500',
   },
   input: {
     width: '100%',
-    padding: '11px 14px',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '8px',
-    fontSize: '0.9rem',
+    padding: '12px 14px',
+    border: '1px solid var(--line, #e3ddd0)',
+    borderRadius: '10px',
+    fontSize: '14px',
+    background: 'var(--card, #ffffff)',
+    color: 'var(--ink, #1a201f)',
     outline: 'none',
     boxSizing: 'border-box',
     fontFamily: 'inherit',
+    transition: 'border-color 0.15s, box-shadow 0.15s',
   },
-  btn: {
+  btnLogin: {
     width: '100%',
     padding: '13px',
-    background: '#0B1F3A',
-    color: 'white',
+    background: 'var(--accent, #0f4842)',
+    color: '#fff',
     border: 'none',
-    borderRadius: '8px',
-    fontSize: '0.95rem',
+    borderRadius: '10px',
+    fontSize: '14px',
     fontWeight: '500',
     cursor: 'pointer',
+    fontFamily: 'inherit',
     marginTop: '0.5rem',
+    letterSpacing: '0.02em',
+    transition: 'all 0.15s',
+  },
+  divider: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    margin: '1.75rem 0 1.25rem',
+  },
+  dividerLine: {
+    flex: 1,
+    height: '1px',
+    background: 'var(--line, #e3ddd0)',
+  },
+  dividerText: {
+    fontSize: '11.5px',
+    color: 'var(--ink-3, #7d8682)',
+    letterSpacing: '0.06em',
+    whiteSpace: 'nowrap',
+  },
+  roleGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr 1fr',
+    gap: '8px',
+    marginBottom: '1.5rem',
+  },
+  roleBtn: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '12px 8px',
+    border: '1px solid var(--line, #e3ddd0)',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    transition: 'all 0.15s',
+  },
+  roleBtnLabel: {
+    fontSize: '12px',
+    fontWeight: '500',
+    color: 'var(--ink-2, #46504d)',
   },
   switchText: {
     textAlign: 'center',
-    marginTop: '1.5rem',
-    fontSize: '0.88rem',
-    color: '#94A3B8',
+    fontSize: '13px',
+    color: 'var(--ink-3, #7d8682)',
+    margin: 0,
   },
   link: {
-    color: '#00C9A7',
+    color: 'var(--accent, #0f4842)',
     textDecoration: 'none',
     fontWeight: '500',
   },
-  btnDemo: {
-  background: 'white',
-  border: '1.5px solid #E2E8F0',
-  borderRadius: '8px',
-  padding: '8px',
-  cursor: 'pointer',
-  fontSize: '0.82rem',
-  color: '#475569',
-  fontFamily: 'inherit',
-},
 }
 
 export default Login

@@ -59,7 +59,7 @@ function PatientsList() {
     <Layout>
   <div>
         <div style={styles.welcome}>
-          <h2 style={styles.title}>👥 Liste des patients</h2>
+          <h2 style={styles.title}> Liste des <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>patients</em></h2>
           <p style={styles.sub}>Consultez les informations et historiques</p>
         </div>
 
