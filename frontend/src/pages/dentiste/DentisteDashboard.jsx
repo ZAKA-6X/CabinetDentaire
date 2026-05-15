@@ -1,301 +1,212 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../components/Layout'
+import { useAuth } from '../../context/AuthContext'
 import api from '../../api'
+
+const IcoCal      = () => <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+const IcoCheck    = () => <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+const IcoClock    = () => <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+const IcoEdit     = () => <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+const IcoPill     = () => <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="8" rx="4" transform="rotate(-30 12 12)"/><path d="M8.5 6.5l7 7"/></svg>
+const IcoUsers    = () => <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3a3 3 0 0 1 0 6M21 21v-2a4 4 0 0 0-3-3.87"/></svg>
+const IcoChevronR = () => <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+
+const MONTHS_FR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']
 
 function DentisteDashboard() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [rdvAujourdhui, setRdvAujourdhui] = useState([])
-  const [stats, setStats] = useState({
-    rdvAujourdhui: 0,
-    visitesEnregistrees: 0,
-    rdvAVenir: 0,
-  })
+  const [stats, setStats] = useState({ total: 0, completes: 0, aVenir: 0 })
   const [loading, setLoading] = useState(true)
 
-  // ─── Charger agenda du jour ───
+  const today = new Date()
+  const todayLabel = `${today.getDate()} ${MONTHS_FR[today.getMonth()]} ${today.getFullYear()}`
+  const greeting = today.getHours() < 12 ? 'Bonjour' : today.getHours() < 18 ? 'Bon après-midi' : 'Bonsoir'
+  const firstName = user?.prenom || user?.nom || 'Docteur'
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await api.get('/dentiste/schedule')
+    api.get('/dentiste/schedule')
+      .then(res => {
         const rdvs = res.data
         setRdvAujourdhui(rdvs)
         setStats({
-          rdvAujourdhui: rdvs.length,
-          visitesEnregistrees: rdvs.filter(r => r.statut === 'COMPLÉTÉ').length,
-          rdvAVenir: rdvs.filter(r => r.statut === 'CONFIRMÉ').length,
+          total:     rdvs.length,
+          completes: rdvs.filter(r => r.statut === 'COMPLÉTÉ').length,
+          aVenir:    rdvs.filter(r => r.statut === 'CONFIRMÉ').length,
         })
-      } catch (err) {
-        console.error('Erreur chargement agenda')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
+
+  const patientName = (rdv) =>
+    rdv.patient ? `${rdv.patient.prenom || ''} ${rdv.patient.nom || ''}`.trim() : rdv.patient?.nom_complet || '—'
+
+  const chipColor = (statut) => {
+    if (statut === 'COMPLÉTÉ') return 'rgba(125,211,200,0.6)'
+    if (statut === 'CONFIRMÉ') return 'rgba(125,211,200,0.9)'
+    return 'rgba(255,255,255,0.55)'
+  }
+
+  const SHORTCUTS = [
+    { Ico: IcoEdit,  label: 'Enregistrer visite',   sub: 'Nouvelle consultation',  path: '/dentiste/visite/nouvelle',   icoStyle: { background: 'var(--accent-soft)', color: 'var(--accent)' } },
+    { Ico: IcoPill,  label: 'Ordonnance',             sub: 'Nouvelle prescription',  path: '/dentiste/ordonnance/nouvelle',icoStyle: { background: 'var(--amber-soft)',  color: 'var(--gold)' } },
+    { Ico: IcoUsers, label: 'Patients',               sub: 'Historique & dossiers',  path: '/dentiste/patients',           icoStyle: { background: 'var(--success-soft)',color: 'var(--success)' } },
+  ]
 
   return (
     <Layout>
-       <div>
-        {/* Titre */}
-        <div style={styles.welcome}>
-          <h2 style={styles.welcomeTitle}>Agenda du jour 🦷</h2>
-          <p style={styles.welcomeSub}>
-            {new Date().toLocaleDateString('fr-FR', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
-          </p>
+      <div>
+
+        {/* Header */}
+        <h1 style={s.pageTitle}>
+          {greeting}, <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>Dr. {firstName}</em>.
+        </h1>
+        <p style={{ ...s.pageSub, marginBottom: '28px' }}>{todayLabel}</p>
+
+        {/* Hero */}
+        <div>
+
+          {/* Dark hero — agenda du jour */}
+          <div style={{ ...s.heroCard, marginBottom: '22px' }}>
+            <div style={s.heroEyebrow}>AGENDA DU JOUR</div>
+
+            {loading ? (
+              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>Chargement...</p>
+            ) : rdvAujourdhui.length === 0 ? (
+              <>
+                <div style={s.heroEmpty}>Aucun rendez-vous aujourd'hui</div>
+                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px', margin: 0 }}>
+                  Profitez de cette journée pour mettre à jour les dossiers patients.
+                </p>
+              </>
+            ) : (
+              <>
+                <div style={s.heroBig}>
+                  {rdvAujourdhui.length}
+                  <span style={{ fontStyle: 'italic', fontWeight: 300, fontSize: '32px', marginLeft: '12px' }}>
+                    {rdvAujourdhui.length === 1 ? 'patient' : 'patients'}
+                  </span>
+                </div>
+                <div style={s.heroLine} />
+                <div>
+                  {rdvAujourdhui.map((rdv, i) => (
+                    <div key={rdv.id} style={{ ...s.heroRow, borderBottom: i < rdvAujourdhui.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>
+                      <span style={s.heroTime}>{rdv.heure?.slice(0, 5)?.replace(':', 'h')}</span>
+                      <span style={s.heroPatient}>{patientName(rdv)}</span>
+                      <span style={{ ...s.heroStatut, color: chipColor(rdv.statut) }}>
+                        {rdv.statut === 'CONFIRMÉ' ? 'Confirmé' : rdv.statut === 'COMPLÉTÉ' ? 'Complété' : rdv.statut}
+                      </span>
+                      <button
+                        style={s.heroBtnVisite}
+                        onClick={() => navigate(`/dentiste/visite/${rdv.id}`)}
+                      >
+                        Enregistrer →
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
         </div>
 
         {/* Stats */}
-        <div style={styles.statsGrid}>
-          <div style={styles.statCard}>
-            <div style={{...styles.statIcon, background: '#E6FAF6'}}>📅</div>
-            <div>
-              <div style={styles.statNum}>{stats.rdvAujourdhui}</div>
-              <div style={styles.statLbl}>RDV aujourd'hui</div>
-            </div>
-          </div>
-          <div style={styles.statCard}>
-            <div style={{...styles.statIcon, background: '#E8F4FD'}}>✅</div>
-            <div>
-              <div style={styles.statNum}>{stats.visitesEnregistrees}</div>
-              <div style={styles.statLbl}>Visites enregistrées</div>
-            </div>
-          </div>
-          <div style={styles.statCard}>
-            <div style={{...styles.statIcon, background: '#FEF3C7'}}>⏳</div>
-            <div>
-              <div style={styles.statNum}>{stats.rdvAVenir}</div>
-              <div style={styles.statLbl}>À venir</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Liste RDV du jour */}
-        <div style={styles.card}>
-          <h3 style={styles.cardTitle}>📅 RDV confirmés du jour</h3>
-
-          {loading ? (
-            <p style={{ color: '#94A3B8' }}>Chargement...</p>
-          ) : rdvAujourdhui.length === 0 ? (
-            <div style={styles.emptyState}>
-              <div style={{ fontSize: '3rem' }}>📭</div>
-              <p>Aucun rendez-vous aujourd'hui</p>
-            </div>
-          ) : (
-            rdvAujourdhui.map(rdv => (
-              <div key={rdv.id} style={styles.rdvItem}>
-
-                {/* Heure */}
-                <div style={styles.rdvTime}>
-                  <div style={styles.rdvHour}>
-                    {rdv.heure?.slice(0, 5)}
-                  </div>
-                  <div style={styles.rdvStatut}>Confirmé</div>
-                </div>
-
-                <div style={styles.rdvDivider}></div>
-
-                {/* Infos patient */}
-                <div style={{ flex: 1 }}>
-                  <div style={styles.rdvName}>
-                    {rdv.patient?.nom_complet}
-                  </div>
-                  <div style={styles.rdvDetail}>
-                    📞 {rdv.patient?.telephone}
-                    {rdv.notes && ` — ${rdv.notes}`}
-                  </div>
-                </div>
-
-                {/* Bouton enregistrer visite */}
-                <button
-                  style={styles.btnVisite}
-                  onClick={() => navigate(`/dentiste/visite/${rdv.id}`)}
-                >
-                  📝 Enregistrer visite
-                </button>
-
+        <div style={s.statsGrid}>
+          {[
+            { Ico: IcoCal,   label: "RDV aujourd'hui", value: stats.total,     bg: 'var(--accent-soft)',  color: 'var(--accent)' },
+            { Ico: IcoCheck, label: 'Visites complétées', value: stats.completes, bg: 'var(--success-soft)', color: 'var(--success)' },
+            { Ico: IcoClock, label: 'À venir',            value: stats.aVenir,    bg: 'var(--amber-soft)',   color: 'var(--gold)' },
+          ].map(({ Ico, label, value, bg, color }) => (
+            <div key={label} style={s.statCard}>
+              <div style={{ ...s.statIcon, background: bg, color }}><Ico /></div>
+              <div>
+                <div style={s.statNum}>{value}</div>
+                <div style={s.statLbl}>{label}</div>
               </div>
-            ))
-          )}
-        </div>
-
-        {/* Raccourcis */}
-        <div style={styles.card}>
-          <h3 style={styles.cardTitle}>⚡ Raccourcis</h3>
-          <div style={styles.shortcutGrid}>
-            <div
-              style={styles.shortcut}
-              onClick={() => navigate('/dentiste/visite/nouvelle')}
-            >
-              <div style={styles.shortcutIcon}>📝</div>
-              <span style={styles.shortcutLabel}>Enregistrer visite</span>
             </div>
-            <div
-              style={styles.shortcut}
-              onClick={() => navigate('/dentiste/ordonnance/nouvelle')}
-            >
-              <div style={styles.shortcutIcon}>💊</div>
-              <span style={styles.shortcutLabel}>Nouvelle ordonnance</span>
-            </div>
-            <div
-              style={styles.shortcut}
-              onClick={() => navigate('/dentiste/patients')}
-            >
-              <div style={styles.shortcutIcon}>👥</div>
-              <span style={styles.shortcutLabel}>Historique patients</span>
-            </div>
-          </div>
+          ))}
         </div>
 
       </div>
-</Layout>
+    </Layout>
   )
 }
 
-// ─── Styles ───
-const styles = {
-
-  welcomeTitle: {
-    fontSize: '1.6rem',
-    color: '#0B1F3A',
-    fontFamily: 'Georgia, serif',
-    margin: 0,
+const s = {
+  pageTitle: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: '400', fontSize: '40px',
+    letterSpacing: '-0.02em', color: 'var(--ink)',
+    margin: '0 0 6px', lineHeight: 1.1,
   },
-  welcomeSub: {
-    color: '#94A3B8',
-    fontSize: '0.9rem',
-    marginTop: '4px',
-    textTransform: 'capitalize',
+  pageSub: { color: 'var(--ink-3)', fontSize: '14px', margin: 0, textTransform: 'capitalize' },
+  dashHero: {
+    display: 'grid', gridTemplateColumns: '1.4fr 1fr',
+    gap: '20px', marginBottom: '22px',
+  },
+  heroCard: {
+    background: 'linear-gradient(155deg, #0f4842 0%, #1d6e66 100%)',
+    borderRadius: 'var(--radius)', padding: '28px 32px', color: 'white',
+  },
+  heroEyebrow: {
+    fontSize: '10.5px', letterSpacing: '0.15em', textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.55)', marginBottom: '14px', fontWeight: '500',
+  },
+  heroBig: {
+    fontFamily: "'Fraunces', serif", fontWeight: '300', fontSize: '52px',
+    letterSpacing: '-0.02em', lineHeight: 1, color: 'white',
+    marginBottom: '16px', display: 'flex', alignItems: 'baseline',
+  },
+  heroEmpty: {
+    fontFamily: "'Fraunces', serif", fontWeight: '300', fontSize: '28px',
+    color: 'rgba(255,255,255,0.85)', marginBottom: '8px', letterSpacing: '-0.01em',
+  },
+  heroLine: { height: '1px', background: 'rgba(255,255,255,0.15)', marginBottom: '14px' },
+  heroRow: {
+    display: 'grid', gridTemplateColumns: '60px 1fr 90px auto',
+    gap: '14px', alignItems: 'center', padding: '10px 0',
+  },
+  heroTime: { fontFamily: '"Geist Mono", monospace', fontSize: '13px', color: 'rgba(255,255,255,0.7)' },
+  heroPatient: { fontSize: '14px', fontWeight: '500', color: 'white' },
+  heroStatut: { fontSize: '12px', fontWeight: '500' },
+  heroBtnVisite: {
+    padding: '5px 12px', borderRadius: '7px', fontSize: '12px', fontWeight: '500',
+    background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)',
+    color: 'white', cursor: 'pointer', fontFamily: 'inherit',
+    backdropFilter: 'blur(4px)', whiteSpace: 'nowrap',
+  },
+  actionsCard: {
+    background: 'var(--card)', border: '1px solid var(--line)',
+    borderRadius: 'var(--radius)', padding: '22px', display: 'flex', flexDirection: 'column',
+  },
+  cardHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' },
+  cardTitle: { fontFamily: "'Fraunces', serif", fontWeight: '500', fontSize: '17px', letterSpacing: '-0.01em', color: 'var(--ink)' },
+  cardSub: { color: 'var(--ink-3)', fontSize: '12px', letterSpacing: '0.04em', textTransform: 'uppercase' },
+  task: { display: 'flex', gap: '12px', alignItems: 'center', padding: '11px 0' },
+  taskIco: { width: '36px', height: '36px', borderRadius: '8px', display: 'grid', placeItems: 'center', flexShrink: 0 },
+  taskTitle: { fontSize: '13.5px', fontWeight: '500', display: 'block', color: 'var(--ink)' },
+  taskSub: { color: 'var(--ink-3)', fontSize: '12px' },
+  taskCta: {
+    display: 'inline-flex', alignItems: 'center', gap: '4px',
+    color: 'var(--accent)', fontSize: '12.5px', fontWeight: '500',
+    background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit',
   },
   statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '1rem',
-    marginBottom: '1.5rem',
+    display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '16px', marginBottom: '20px',
   },
   statCard: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '1.25rem',
-    boxShadow: '0 4px 24px rgba(11,31,58,0.08)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
+    background: 'var(--card)', border: '1px solid var(--line)',
+    borderRadius: 'var(--radius)', padding: '20px',
+    display: 'flex', alignItems: 'center', gap: '16px',
   },
-  statIcon: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '12px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '1.4rem',
-    flexShrink: 0,
-  },
-  statNum: {
-    fontSize: '1.8rem',
-    fontWeight: '600',
-    color: '#0B1F3A',
-    lineHeight: 1,
-  },
-  statLbl: {
-    fontSize: '0.82rem',
-    color: '#94A3B8',
-    marginTop: '4px',
-  },
-  card: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 4px 24px rgba(11,31,58,0.08)',
-    marginBottom: '1.5rem',
-  },
-  cardTitle: {
-    fontFamily: 'Georgia, serif',
-    fontSize: '1.05rem',
-    color: '#0B1F3A',
-    margin: '0 0 1rem 0',
-  },
-  emptyState: {
-    textAlign: 'center',
-    padding: '2rem',
-    color: '#94A3B8',
-  },
-  rdvItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    padding: '1rem',
-    border: '1px solid #E2E8F0',
-    borderRadius: '8px',
-    marginBottom: '0.75rem',
-  },
-  rdvTime: {
-    textAlign: 'center',
-    minWidth: '64px',
-  },
-  rdvHour: {
-    fontSize: '1.1rem',
-    fontWeight: '600',
-    color: '#0B1F3A',
-  },
-  rdvStatut: {
-    fontSize: '0.72rem',
-    color: '#00C9A7',
-    marginTop: '2px',
-  },
-  rdvDivider: {
-    width: '2px',
-    height: '40px',
-    background: '#B2F0E8',
-    borderRadius: '1px',
-  },
-  rdvName: {
-    fontWeight: '500',
-    color: '#0B1F3A',
-  },
-  rdvDetail: {
-    fontSize: '0.8rem',
-    color: '#94A3B8',
-    marginTop: '2px',
-  },
-  btnVisite: {
-    background: '#00C9A7',
-    color: 'white',
-    border: 'none',
-    padding: '8px 16px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    fontWeight: '500',
-    whiteSpace: 'nowrap',
-  },
-  shortcutGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-    gap: '1rem',
-  },
-  shortcut: {
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '12px',
-    padding: '1.25rem',
-    textAlign: 'center',
-    cursor: 'pointer',
-  },
-  shortcutIcon: {
-    fontSize: '2rem',
-    marginBottom: '0.6rem',
-  },
-  shortcutLabel: {
-    fontSize: '0.82rem',
-    color: '#475569',
-    fontWeight: '500',
-  },
+  statIcon: { width: '48px', height: '48px', borderRadius: '12px', display: 'grid', placeItems: 'center', flexShrink: 0 },
+  statNum: { fontSize: '1.8rem', fontWeight: '600', color: 'var(--ink)', lineHeight: 1 },
+  statLbl: { fontSize: '12px', color: 'var(--ink-3)', marginTop: '4px' },
 }
 
 export default DentisteDashboard

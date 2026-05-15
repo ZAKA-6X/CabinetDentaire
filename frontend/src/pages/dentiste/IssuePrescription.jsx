@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import Layout from '../../components/Layout'
 import api from '../../api'
 
@@ -10,324 +11,279 @@ function IssuePrescription() {
   const [medicaments, setMedicaments] = useState([])
   const [selectedMeds, setSelectedMeds] = useState([])
   const [instructions, setInstructions] = useState('')
-  const [patient, setPatient] = useState('')
-  const [patients, setPatients] = useState([])
+  const [visites, setVisites] = useState([])
+  const [selectedVisiteId, setSelectedVisiteId] = useState(visite_id || '')
   const [loading, setLoading] = useState(false)
 
-  // ─── Charger médicaments et patients ───
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [medsRes, patientsRes] = await Promise.all([
-          api.get('/medicaments'),
-          api.get('/patients'),
-        ])
+    const reqs = [api.get('/medicaments')]
+    if (!visite_id) reqs.push(api.get('/dentiste/visites/today'))
+    Promise.all(reqs)
+      .then(([medsRes, visitesRes]) => {
         setMedicaments(medsRes.data)
-        setPatients(patientsRes.data)
-      } catch (err) {
-        console.error('Erreur chargement données')
-      }
-    }
-    fetchData()
+        if (visitesRes) setVisites(visitesRes.data || [])
+      })
+      .catch(() => {})
   }, [])
 
-  // ─── Ajouter médicament ───
   const handleAddMed = (e) => {
     const id = e.target.value
     if (!id) return
     const med = medicaments.find(m => m.id === parseInt(id))
     if (med && !selectedMeds.find(s => s.id === med.id)) {
-      setSelectedMeds([...selectedMeds, {
-        ...med,
-        frequence: '',
-        duree_jours: 7,
-      }])
+      setSelectedMeds(prev => [...prev, { ...med, frequence: '', duree_jours: 7 }])
     }
     e.target.value = ''
   }
 
-  // ─── Modifier fréquence ou durée ───
   const handleMedChange = (id, field, value) => {
-    setSelectedMeds(selectedMeds.map(m =>
-      m.id === id ? { ...m, [field]: value } : m
-    ))
+    setSelectedMeds(prev => prev.map(m => m.id === id ? { ...m, [field]: value } : m))
   }
 
-  // ─── Supprimer médicament ───
-  const handleRemoveMed = (id) => {
-    setSelectedMeds(selectedMeds.filter(m => m.id !== id))
-  }
-
-  // ─── Enregistrer ordonnance ───
   const handleSubmit = async () => {
-    if (selectedMeds.length === 0) {
-      alert('Ajoutez au moins un médicament')
-      return
-    }
-    if (selectedMeds.some(m => !m.frequence)) {
-      alert('Remplissez la fréquence de tous les médicaments')
-      return
-    }
+    if (!selectedVisiteId) { toast.warning('Sélectionnez une visite'); return }
+    if (selectedMeds.length === 0) { toast.warning('Ajoutez au moins un médicament'); return }
+    if (selectedMeds.some(m => !m.frequence)) { toast.warning('Remplissez la fréquence de tous les médicaments'); return }
+    setLoading(true)
     try {
-      setLoading(true)
       await api.post('/ordonnances', {
-        visite_id,
-        patient_id: patient,
+        visite_id: selectedVisiteId,
         instructions_generales: instructions,
-        statut: 'ACTIF',
         medicaments: selectedMeds.map(m => ({
-          id: m.id,
+          medicament_id: m.id,
           frequence: m.frequence,
           duree_jours: m.duree_jours,
-        }))
+        })),
       })
-      alert('💊 Ordonnance enregistrée avec succès !')
+      toast.success('Ordonnance enregistrée')
       navigate('/dentiste/dashboard')
-    } catch (err) {
-      alert('Erreur lors de l\'enregistrement')
-    } finally {
-      setLoading(false)
-    }
+    } catch { /* interceptor */ }
+    finally { setLoading(false) }
   }
 
   return (
-   <Layout>
-  <div>
-        <div style={styles.welcome}>
-          <h2 style={styles.title}>💊 Émettre une ordonnance</h2>
-          <p style={styles.sub}>Prescrivez les médicaments nécessaires</p>
+    <Layout>
+      <div>
+
+        {/* Header */}
+        <div style={{ marginBottom: '28px' }}>
+          <h1 style={s.pageTitle}>
+            Émettre <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>une ordonnance</em>
+          </h1>
+          <p style={s.pageSub}>Prescrivez les médicaments nécessaires.</p>
         </div>
 
-        <div style={styles.card}>
+        <div style={s.grid}>
 
-          {/* Patient */}
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Patient</label>
-            <select
-              style={styles.input}
-              value={patient}
-              onChange={e => setPatient(e.target.value)}
-            >
-              <option value="">-- Choisir un patient --</option>
-              {patients.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.nom_complet}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* ── Left ── */}
+          <div style={s.card}>
+            <h3 style={s.cardTitle}>Prescription</h3>
 
-          {/* Ajouter médicament */}
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Ajouter un médicament</label>
-            <select style={styles.input} onChange={handleAddMed}>
-              <option value="">-- Choisir --</option>
-              {medicaments.map(m => (
-                <option key={m.id} value={m.id}>
-                  {m.nom} {m.dosage}
-                </option>
-              ))}
-            </select>
-          </div>
+            {/* Visite selector (only when no visite_id in URL) */}
+            {!visite_id && (
+              <div style={s.formGroup}>
+                <label style={s.label}>Visite du jour</label>
+                <select style={s.input} value={selectedVisiteId} onChange={e => setSelectedVisiteId(e.target.value)}>
+                  <option value="">— Choisir une visite —</option>
+                  {visites.map(v => (
+                    <option key={v.id} value={v.id}>
+                      {v.patient ? `${v.patient.prenom || ''} ${v.patient.nom || ''}`.trim() : `Visite #${v.id}`}
+                      {v.date_visite ? ` · ${v.date_visite}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-          {/* Liste médicaments sélectionnés */}
-          {selectedMeds.length === 0 ? (
-            <div style={styles.emptyMeds}>
-              <div style={{ fontSize: '2rem' }}>💊</div>
-              <p>Aucun médicament ajouté</p>
-            </div>
-          ) : (
-            <div style={styles.medsList}>
-              <label style={styles.label}>
-                Médicaments prescrits
-              </label>
-              {selectedMeds.map(med => (
-                <div key={med.id} style={styles.medItem}>
-
-                  {/* Nom médicament */}
-                  <div style={styles.medHeader}>
-                    <strong style={{ color: '#0B1F3A' }}>
-                      💊 {med.nom} {med.dosage}
-                    </strong>
-                    <button
-                      style={styles.btnRemove}
-                      onClick={() => handleRemoveMed(med.id)}
-                    >
-                      ✕ Retirer
-                    </button>
-                  </div>
-
-                  {/* Fréquence et durée */}
-                  <div style={styles.medFields}>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Fréquence</label>
-                      <input
-                        style={styles.input}
-                        placeholder="Ex: 3 fois par jour"
-                        value={med.frequence}
-                        onChange={e =>
-                          handleMedChange(med.id, 'frequence', e.target.value)
-                        }
-                      />
-                    </div>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Durée (jours)</label>
-                      <input
-                        style={styles.input}
-                        type="number"
-                        min="1"
-                        value={med.duree_jours}
-                        onChange={e =>
-                          handleMedChange(med.id, 'duree_jours', e.target.value)
-                        }
-                      />
-                    </div>
-                  </div>
+            {visite_id && (
+              <div style={{ ...s.formGroup }}>
+                <label style={s.label}>Visite</label>
+                <div style={s.infoBadge}>
+                  Visite #{String(visite_id).padStart(4, '0')}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            )}
 
-          {/* Instructions générales */}
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Instructions générales</label>
-            <textarea
-              style={styles.textarea}
-              rows={4}
-              placeholder="Ex: Prendre les médicaments après les repas..."
-              value={instructions}
-              onChange={e => setInstructions(e.target.value)}
-            />
+            {/* Add medication */}
+            <div style={s.formGroup}>
+              <label style={s.label}>Ajouter un médicament</label>
+              <select style={s.input} onChange={handleAddMed} defaultValue="">
+                <option value="">— Choisir —</option>
+                {medicaments.map(m => (
+                  <option key={m.id} value={m.id}>{m.nom} · {m.dosage}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Med list */}
+            {selectedMeds.length === 0 ? (
+              <div style={s.emptyMeds}>
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--ink-3)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '8px' }}>
+                  <rect x="3" y="8" width="18" height="8" rx="4" transform="rotate(-30 12 12)"/><path d="M8.5 6.5l7 7"/>
+                </svg>
+                <p style={{ margin: 0, fontSize: '13px' }}>Aucun médicament ajouté</p>
+              </div>
+            ) : (
+              <div style={{ marginBottom: '16px' }}>
+                {selectedMeds.map(med => (
+                  <div key={med.id} style={s.medItem}>
+                    <div style={s.medHeader}>
+                      <div>
+                        <b style={{ fontSize: '13.5px', color: 'var(--ink)' }}>{med.nom}</b>
+                        <small style={{ display: 'block', color: 'var(--ink-3)', fontSize: '12px' }}>{med.dosage} · {med.forme}</small>
+                      </div>
+                      <button style={s.btnRemove} onClick={() => setSelectedMeds(p => p.filter(m => m.id !== med.id))}>✕</button>
+                    </div>
+                    <div style={s.medFields}>
+                      <div>
+                        <label style={s.label}>Fréquence</label>
+                        <input
+                          style={s.input} placeholder="Ex: 3×/jour"
+                          value={med.frequence}
+                          onChange={e => handleMedChange(med.id, 'frequence', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label style={s.label}>Durée (jours)</label>
+                        <input
+                          style={s.input} type="number" min="1"
+                          value={med.duree_jours}
+                          onChange={e => handleMedChange(med.id, 'duree_jours', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Instructions */}
+            <div style={s.formGroup}>
+              <label style={s.label}>Instructions générales</label>
+              <textarea
+                style={s.textarea} rows={3}
+                placeholder="Ex: Prendre après les repas..."
+                value={instructions}
+                onChange={e => setInstructions(e.target.value)}
+              />
+            </div>
           </div>
 
-          {/* Boutons */}
-          <div style={styles.btnGroup}>
-            <button
-              style={styles.btnPrimary}
-              onClick={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? 'Enregistrement...' : '💾 Enregistrer l\'ordonnance'}
-            </button>
-            <button
-              style={styles.btnOutline}
-              onClick={() => navigate('/dentiste/dashboard')}
-            >
-              Annuler
-            </button>
+          {/* ── Right: summary + actions ── */}
+          <div>
+            <div style={s.card}>
+              <h3 style={s.cardTitle}>Résumé</h3>
+              {selectedMeds.length === 0 ? (
+                <p style={{ color: 'var(--ink-3)', fontSize: '13px' }}>Aucun médicament sélectionné.</p>
+              ) : (
+                selectedMeds.map((med, i) => (
+                  <div key={med.id} style={{ padding: '12px 0', borderBottom: i < selectedMeds.length - 1 ? '1px dashed var(--line)' : 'none' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                      <b style={{ fontSize: '13.5px', color: 'var(--ink)' }}>{med.nom}</b>
+                      <span style={{ fontSize: '11px', color: 'var(--ink-3)', fontFamily: '"Geist Mono", monospace', flexShrink: 0, marginLeft: '8px' }}>{med.dosage}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <small style={{ color: med.frequence ? 'var(--accent)' : 'var(--ink-3)', fontSize: '12px' }}>
+                        {med.frequence || 'Fréquence non renseignée'}
+                      </small>
+                      <small style={{ color: 'var(--ink-3)', fontSize: '12px' }}>
+                        {med.duree_jours} jour{med.duree_jours > 1 ? 's' : ''}
+                      </small>
+                    </div>
+                  </div>
+                ))
+              )}
+              {selectedMeds.length > 0 && instructions && (
+                <div style={{ marginTop: '14px', padding: '12px', background: 'var(--accent-soft)', borderRadius: '8px', fontSize: '13px', color: 'var(--accent)', lineHeight: 1.5 }}>
+                  {instructions}
+                </div>
+              )}
+            </div>
+
+            <div style={s.card}>
+              <button style={s.btnPrimary} onClick={handleSubmit} disabled={loading}>
+                {loading ? 'Enregistrement...' : "Enregistrer l'ordonnance →"}
+              </button>
+              <button style={s.btnOutline} onClick={() => navigate('/dentiste/dashboard')}>
+                Annuler
+              </button>
+            </div>
           </div>
 
         </div>
       </div>
-</Layout>
+    </Layout>
   )
 }
 
-const styles = {
-  
-  title: {
-    fontSize: '1.6rem',
-    color: '#0B1F3A',
-    fontFamily: 'Georgia, serif',
-    margin: 0,
+const s = {
+  pageTitle: {
+    fontFamily: "'Fraunces', serif", fontWeight: '400', fontSize: '36px',
+    letterSpacing: '-0.02em', color: 'var(--ink)', margin: '0 0 6px', lineHeight: '1.1',
   },
-  sub: { color: '#94A3B8', fontSize: '0.9rem', marginTop: '4px' },
+  pageSub: { color: 'var(--ink-2)', fontSize: '14px', margin: 0 },
+  grid: { display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', alignItems: 'start' },
   card: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 4px 24px rgba(11,31,58,0.08)',
+    background: 'var(--card)', border: '1px solid var(--line)',
+    borderRadius: 'var(--radius)', padding: '24px', marginBottom: '16px',
   },
-  formGroup: { marginBottom: '1rem' },
+  cardTitle: {
+    fontFamily: "'Fraunces', serif", fontWeight: '500', fontSize: '17px',
+    color: 'var(--ink)', margin: '0 0 20px',
+  },
+  formGroup: { marginBottom: '16px' },
   label: {
-    display: 'block',
-    fontSize: '0.82rem',
-    fontWeight: '500',
-    color: '#475569',
-    marginBottom: '5px',
+    display: 'block', fontSize: '11px', letterSpacing: '0.1em',
+    textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: '6px', fontWeight: '500',
   },
   input: {
-    width: '100%',
-    padding: '10px 12px',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '8px',
-    fontSize: '0.88rem',
-    outline: 'none',
-    background: '#F8FAFC',
-    boxSizing: 'border-box',
-    fontFamily: 'inherit',
+    width: '100%', padding: '11px 14px',
+    border: '1px solid var(--line)', borderRadius: '10px',
+    fontSize: '14px', background: 'var(--card)', color: 'var(--ink)',
+    outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
   },
   textarea: {
-    width: '100%',
-    padding: '10px 12px',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '8px',
-    fontSize: '0.88rem',
-    outline: 'none',
-    background: '#F8FAFC',
-    boxSizing: 'border-box',
-    fontFamily: 'inherit',
-    resize: 'vertical',
+    width: '100%', padding: '11px 14px',
+    border: '1px solid var(--line)', borderRadius: '10px',
+    fontSize: '14px', background: 'var(--card)', color: 'var(--ink)',
+    outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical',
+  },
+  infoBadge: {
+    padding: '11px 14px', borderRadius: '10px',
+    border: '1px solid var(--line)', background: 'var(--surface)',
+    fontSize: '13.5px', color: 'var(--ink-2)', fontFamily: '"Geist Mono", monospace',
   },
   emptyMeds: {
-    textAlign: 'center',
-    padding: '2rem',
-    color: '#94A3B8',
-    background: '#F8FAFC',
-    borderRadius: '8px',
-    marginBottom: '1rem',
+    textAlign: 'center', padding: '2rem',
+    color: 'var(--ink-3)', background: 'var(--surface)',
+    borderRadius: '10px', marginBottom: '16px',
   },
-  medsList: { marginBottom: '1rem' },
   medItem: {
-    border: '1px solid #E2E8F0',
-    borderRadius: '10px',
-    padding: '1rem',
-    marginBottom: '0.75rem',
+    border: '1px solid var(--line)', borderRadius: '10px',
+    padding: '14px', marginBottom: '10px',
   },
   medHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '0.75rem',
+    display: 'flex', justifyContent: 'space-between',
+    alignItems: 'flex-start', marginBottom: '12px',
   },
-  medFields: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1rem',
-  },
+  medFields: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' },
   btnRemove: {
-    background: '#FEE2E2',
-    color: '#991B1B',
-    border: 'none',
-    padding: '4px 10px',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.78rem',
-  },
-  btnGroup: {
-    display: 'flex',
-    gap: '10px',
-    marginTop: '0.5rem',
+    width: '26px', height: '26px', borderRadius: '6px',
+    background: 'var(--rose-soft)', color: 'var(--rose)',
+    border: 'none', cursor: 'pointer', fontSize: '11px',
+    display: 'grid', placeItems: 'center', flexShrink: 0,
   },
   btnPrimary: {
-    flex: 1,
-    padding: '13px',
-    background: '#0B1F3A',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '0.95rem',
-    fontWeight: '500',
-    cursor: 'pointer',
+    width: '100%', padding: '13px', marginBottom: '10px',
+    background: 'var(--accent)', color: '#fff', border: 'none',
+    borderRadius: '10px', fontSize: '14px', fontWeight: '500',
+    cursor: 'pointer', fontFamily: 'inherit',
   },
   btnOutline: {
-    padding: '13px 24px',
-    background: 'white',
-    color: '#475569',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '8px',
-    fontSize: '0.95rem',
-    cursor: 'pointer',
+    width: '100%', padding: '13px',
+    background: 'transparent', color: 'var(--ink-2)',
+    border: '1px solid var(--line-strong)', borderRadius: '10px',
+    fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit',
   },
 }
 

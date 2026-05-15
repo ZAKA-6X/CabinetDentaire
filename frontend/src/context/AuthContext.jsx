@@ -32,6 +32,14 @@ export function AuthProvider({ children }) {
   // Appelée après une connexion réussie
   // Sauvegarde l'utilisateur et le token
   // ─────────────────────────────────────────
+  const updateUser = (patch) => {
+    setUser(prev => {
+      const next = { ...prev, ...patch }
+      localStorage.setItem('user', JSON.stringify(next))
+      return next
+    })
+  }
+
   const login = (userData, tokenValue) => {
     // Sauvegarder dans React (mise à jour immédiate)
     setUser(userData);
@@ -61,7 +69,7 @@ export function AuthProvider({ children }) {
   // value = ce qu'on partage avec toute l'app
   // ─────────────────────────────────────────
   return (
-    <AuthContext.Provider value={{ user, token, login, logout }}>
+    <AuthContext.Provider value={{ user, token, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

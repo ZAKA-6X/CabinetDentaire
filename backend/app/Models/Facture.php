@@ -3,9 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Visite;
 
 class Facture extends Model
 {
+    public function patient() { return $this->belongsTo(Patient::class); }
+    public function visite()  { return $this->belongsTo(Visite::class); }
+
     protected $fillable = [
         'numero_facture',
         'visite_id',

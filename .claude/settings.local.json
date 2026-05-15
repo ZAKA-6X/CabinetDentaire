@@ -6,7 +6,13 @@
       "Bash(composer require *)",
       "Bash(Get-ChildItem \"C:\\\\xampp\\\\htdocs\\\\Cabinet Dentaire\\\\backend\\\\database\\\\migrations\")",
       "Bash(Select-Object Name)",
-      "PowerShell(Get-ChildItem -Path \"C:\\\\xampp\\\\htdocs\\\\Cabinet Dentaire\\\\frontend\\\\src\" -Recurse -Force | ForEach-Object { $_.FullName } | Sort-Object)"
+      "PowerShell(Get-ChildItem -Path \"C:\\\\xampp\\\\htdocs\\\\Cabinet Dentaire\\\\frontend\\\\src\" -Recurse -Force | ForEach-Object { $_.FullName } | Sort-Object)",
+      "Bash(xargs grep -l -i \"login\")",
+      "Bash(xargs cat)",
+      "Bash(grep -v \".php:$\")",
+      "Bash(Get-Content *)",
+      "Bash(php -r \"echo file_get_contents\\('storage/logs/laravel.log'\\);\")",
+      "Bash(php -r ' *)"
     ]
   }
 }

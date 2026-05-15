@@ -24,6 +24,8 @@ import PatientsList from './pages/secretaire/PatientsList'
 
 // ─── Dentiste ───
 import DentisteDashboard from './pages/dentiste/DentisteDashboard'
+import AgendaDuJour from './pages/dentiste/AgendaDuJour'
+import VisiteDetail from './pages/dentiste/VisiteDetail'
 import RecordVisit from './pages/dentiste/RecordVisit'
 import IssuePrescription from './pages/dentiste/IssuePrescription'
 import PatientHistory from './pages/dentiste/PatientHistory'
@@ -107,11 +109,26 @@ function App() {
             <PatientsList />
           </ProtectedRoute>
         } />
+        <Route path="/secretaire/patient/:id" element={
+          <ProtectedRoute roles={['SECRETAIRE']}>
+            <PatientsList />
+          </ProtectedRoute>
+        } />
 
         {/* ─── Dentiste ─── */}
         <Route path="/dentiste/dashboard" element={
           <ProtectedRoute roles={['DENTISTE']}>
             <DentisteDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/dentiste/agenda" element={
+          <ProtectedRoute roles={['DENTISTE']}>
+            <AgendaDuJour />
+          </ProtectedRoute>
+        } />
+        <Route path="/dentiste/visite-detail/:id" element={
+          <ProtectedRoute roles={['DENTISTE']}>
+            <VisiteDetail />
           </ProtectedRoute>
         } />
         <Route path="/dentiste/visite/:rdv_id" element={

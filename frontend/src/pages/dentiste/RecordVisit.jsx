@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import Layout from '../../components/Layout'
 import api from '../../api'
 
@@ -7,358 +8,282 @@ function RecordVisit() {
   const { rdv_id } = useParams()
   const navigate = useNavigate()
 
-  const [formData, setFormData] = useState({
-    diagnostic: '',
-    traitement_fourni: '',
-    notes: '',
-  })
+  const [formData, setFormData] = useState({ diagnostic: '', traitement_fourni: '', notes: '' })
   const [operations, setOperations] = useState([])
   const [selectedOps, setSelectedOps] = useState([])
-  const [patients, setPatients] = useState([])
-  const [selectedPatient, setSelectedPatient] = useState('')
+  const [rdvs, setRdvs] = useState([])
+  const [selectedRdvId, setSelectedRdvId] = useState(rdv_id || '')
   const [loading, setLoading] = useState(false)
-  const [total, setTotal] = useState(200)
+  const [selectOpVal, setSelectOpVal] = useState('')
 
-  // ─── Charger operations et patients ───
+  const BASE_FEE = 200
+  const total = BASE_FEE + selectedOps.reduce((s, op) => s + Number(op.cout), 0)
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [opsRes, patientsRes] = await Promise.all([
-          api.get('/operations'),
-          api.get('/patients'),
-        ])
+    Promise.all([api.get('/operations'), api.get('/rendez-vous')])
+      .then(([opsRes, rdvRes]) => {
         setOperations(opsRes.data)
-        setPatients(patientsRes.data)
-      } catch (err) {
-        console.error('Erreur chargement données')
-      }
-    }
-    fetchData()
+        // only confirmed RDVs can have a visite
+        const todayStr = new Date().toISOString().slice(0, 10)
+        setRdvs(rdvRes.data.filter(r => r.statut === 'CONFIRMÉ' && r.date === todayStr))
+      })
+      .catch(() => {})
   }, [])
 
-  // ─── Calculer total en temps réel ───
-  useEffect(() => {
-    const sumOps = selectedOps.reduce((sum, op) => sum + Number(op.cout), 0)
-    setTotal(200 + sumOps)
-  }, [selectedOps])
+  const selectedRdv = rdvs.find(r => String(r.id) === String(selectedRdvId))
+  const patientName = selectedRdv?.patient
+    ? `${selectedRdv.patient.prenom || ''} ${selectedRdv.patient.nom || ''}`.trim()
+    : '—'
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
-  }
-
-  // ─── Ajouter opération ───
   const handleAddOp = (e) => {
     const id = e.target.value
+    setSelectOpVal('')
     if (!id) return
     const op = operations.find(o => o.id === parseInt(id))
-    if (op && !selectedOps.find(s => s.id === op.id)) {
-      setSelectedOps([...selectedOps, op])
-    }
-    e.target.value = ''
+    if (op && !selectedOps.find(s => s.id === op.id)) setSelectedOps(prev => [...prev, op])
   }
 
-  // ─── Supprimer opération ───
-  const handleRemoveOp = (id) => {
-    setSelectedOps(selectedOps.filter(op => op.id !== id))
-  }
-
-  // ─── Enregistrer visite ───
   const handleSubmit = async () => {
-    if (!formData.diagnostic) {
-      alert('Entrez un diagnostic')
-      return
-    }
+    if (!selectedRdvId) { toast.warning('Sélectionnez un rendez-vous'); return }
+    if (!formData.diagnostic) { toast.warning('Entrez un diagnostic'); return }
+    setLoading(true)
     try {
-      setLoading(true)
-      await api.post('/visites', {
+      const res = await api.post('/visites', {
         ...formData,
-        rendez_vous_id: rdv_id,
-        patient_id: selectedPatient,
-        operations: selectedOps.map(op => op.id),
+        rendezvous_id: selectedRdvId,
+        frais_visite_base: BASE_FEE,
+        operations: selectedOps.map(op => ({
+          nom_operation: op.nom,
+          cout: op.cout,
+          description: op.description || null,
+        })),
       })
-      alert('✅ Visite enregistrée — Facture générée automatiquement !')
-      navigate('/dentiste/dashboard')
-    } catch (err) {
-      alert('Erreur lors de l\'enregistrement')
-    } finally {
-      setLoading(false)
-    }
+      toast.success('Visite enregistrée — facture générée !')
+      const visiteId = res.data?.id
+      navigate(visiteId ? `/dentiste/ordonnance/${visiteId}` : '/dentiste/dashboard')
+    } catch { /* interceptor handles */ }
+    finally { setLoading(false) }
   }
 
   return (
     <Layout>
-       <div>
-        <div style={styles.welcome}>
-          <h2 style={styles.title}>📝 Enregistrer une visite</h2>
-          <p style={styles.sub}>Complétez les informations de la visite</p>
+      <div>
+
+        {/* Header */}
+        <div style={{ marginBottom: '28px' }}>
+          <h1 style={s.pageTitle}>
+            Enregistrer <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>une visite</em>
+          </h1>
+          <p style={s.pageSub}>Complétez les informations cliniques et les opérations effectuées.</p>
         </div>
 
-        <div style={styles.grid}>
+        <div style={s.grid}>
 
-          {/* ─── Colonne gauche ─── */}
-          <div style={styles.card}>
-            <h3 style={styles.cardTitle}>🏥 Informations cliniques</h3>
+          {/* ── Left: clinical info ── */}
+          <div style={s.card}>
+            <h3 style={s.cardTitle}>Informations cliniques</h3>
 
-            {/* Patient */}
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Patient</label>
-              <select
-                style={styles.input}
-                value={selectedPatient}
-                onChange={e => setSelectedPatient(e.target.value)}
-              >
-                <option value="">-- Choisir un patient --</option>
-                {patients.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.nom_complet}
-                  </option>
-                ))}
-              </select>
+            {/* RDV / Patient */}
+            <div style={s.formGroup}>
+              <label style={s.label}>Rendez-vous — Patient</label>
+              {rdv_id ? (
+                <div style={s.patientBadge}>
+                  <div style={s.patientAvatar}>
+                    {patientName.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase() || '?'}
+                  </div>
+                  <div>
+                    <b style={{ fontSize: '14px', color: 'var(--ink)' }}>{patientName}</b>
+                    <small style={{ display: 'block', color: 'var(--ink-3)', fontSize: '12px' }}>
+                      RDV #{String(rdv_id).padStart(4,'0')} · {selectedRdv?.heure?.slice(0,5) || ''}
+                    </small>
+                  </div>
+                </div>
+              ) : (
+                <select style={s.input} value={selectedRdvId} onChange={e => setSelectedRdvId(e.target.value)}>
+                  <option value="">— Choisir un rendez-vous confirmé —</option>
+                  {rdvs.map(r => {
+                    const name = r.patient ? `${r.patient.prenom || ''} ${r.patient.nom || ''}`.trim() : '—'
+                    return (
+                      <option key={r.id} value={r.id}>
+                        {name} · {r.date} {r.heure?.slice(0,5)}
+                      </option>
+                    )
+                  })}
+                </select>
+              )}
             </div>
 
             {/* Diagnostic */}
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Diagnostic</label>
+            <div style={s.formGroup}>
+              <label style={s.label}>Diagnostic</label>
               <textarea
-                style={styles.textarea}
-                name="diagnostic"
-                rows={4}
+                style={s.textarea} name="diagnostic" rows={4}
                 placeholder="Décrivez le diagnostic..."
                 value={formData.diagnostic}
-                onChange={handleChange}
+                onChange={e => setFormData(f => ({ ...f, diagnostic: e.target.value }))}
               />
             </div>
 
             {/* Traitement */}
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Traitement fourni</label>
+            <div style={s.formGroup}>
+              <label style={s.label}>Traitement fourni</label>
               <textarea
-                style={styles.textarea}
-                name="traitement_fourni"
-                rows={4}
+                style={s.textarea} name="traitement_fourni" rows={4}
                 placeholder="Décrivez le traitement effectué..."
                 value={formData.traitement_fourni}
-                onChange={handleChange}
+                onChange={e => setFormData(f => ({ ...f, traitement_fourni: e.target.value }))}
               />
             </div>
 
             {/* Notes */}
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Notes complémentaires</label>
+            <div style={s.formGroup}>
+              <label style={s.label}>Notes complémentaires</label>
               <textarea
-                style={styles.textarea}
-                name="notes"
-                rows={3}
+                style={s.textarea} name="notes" rows={3}
                 placeholder="Notes supplémentaires..."
                 value={formData.notes}
-                onChange={handleChange}
+                onChange={e => setFormData(f => ({ ...f, notes: e.target.value }))}
               />
             </div>
           </div>
 
-          {/* ─── Colonne droite ─── */}
+          {/* ── Right: operations + actions ── */}
           <div>
-            <div style={styles.card}>
-              <h3 style={styles.cardTitle}>⚙️ Opérations effectuées</h3>
+            <div style={s.card}>
+              <h3 style={s.cardTitle}>Opérations effectuées</h3>
 
-              {/* Ajouter opération */}
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Ajouter une opération</label>
-                <select style={styles.input} onChange={handleAddOp}>
-                  <option value="">-- Choisir --</option>
+              <div style={s.formGroup}>
+                <label style={s.label}>Ajouter une opération</label>
+                <select style={s.input} value={selectOpVal} onChange={handleAddOp}>
+                  <option value="">— Choisir —</option>
                   {operations.map(op => (
-                    <option key={op.id} value={op.id}>
-                      {op.nom} — {op.cout} MAD
+                    <option key={op.id} value={op.id} disabled={!!selectedOps.find(s => s.id === op.id)}>
+                      {op.nom} · {op.cout} MAD
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Liste opérations sélectionnées */}
               {selectedOps.length === 0 ? (
-                <p style={{ color: '#94A3B8', fontSize: '0.85rem' }}>
-                  Aucune opération ajoutée
-                </p>
+                <p style={{ color: 'var(--ink-3)', fontSize: '13px', padding: '8px 0' }}>Aucune opération ajoutée.</p>
               ) : (
                 selectedOps.map(op => (
-                  <div key={op.id} style={styles.opRow}>
-                    <span style={{ flex: 1 }}>{op.nom}</span>
-                    <span style={styles.opCout}>{op.cout} MAD</span>
-                    <button
-                      style={styles.btnRemove}
-                      onClick={() => handleRemoveOp(op.id)}
-                    >
-                      ✕
-                    </button>
+                  <div key={op.id} style={s.opRow}>
+                    <span style={{ flex: 1, fontSize: '13.5px', color: 'var(--ink)' }}>{op.nom}</span>
+                    <span style={s.opCout}>{op.cout} MAD</span>
+                    <button style={s.btnRemove} onClick={() => setSelectedOps(p => p.filter(o => o.id !== op.id))}>✕</button>
                   </div>
                 ))
               )}
 
-              {/* Frais de base */}
-              <div style={styles.opRow}>
-                <span style={{ flex: 1, color: '#94A3B8' }}>
-                  Frais de base
-                </span>
-                <span style={styles.opCout}>200 MAD</span>
+              {/* Base fee */}
+              <div style={{ ...s.opRow, borderBottom: 'none' }}>
+                <span style={{ flex: 1, fontSize: '13px', color: 'var(--ink-3)' }}>Frais de visite de base</span>
+                <span style={{ fontFamily: '"Geist Mono", monospace', fontSize: '13px', color: 'var(--ink-2)' }}>{BASE_FEE} MAD</span>
               </div>
 
               {/* Total */}
-              <div style={styles.totalBar}>
-                <span style={styles.totalLabel}>
-                  💰 Total
-                </span>
-                <span style={styles.totalAmount}>
-                  {total} MAD
-                </span>
+              <div style={s.totalBar}>
+                <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--ink)' }}>Total</span>
+                <span style={s.totalAmount}>{total} MAD</span>
               </div>
             </div>
 
-            {/* ─── Boutons ─── */}
-            <div style={styles.card}>
-              <button
-                style={styles.btnPrimary}
-                onClick={handleSubmit}
-                disabled={loading}
-              >
-                {loading ? 'Enregistrement...' : '✅ Marquer comme COMPLÉTÉ'}
+            {/* Actions */}
+            <div style={s.card}>
+              <button style={s.btnPrimary} onClick={handleSubmit} disabled={loading}>
+                {loading ? 'Enregistrement...' : 'Marquer comme complété →'}
               </button>
-              <button
-                style={styles.btnOutline}
-                onClick={() => navigate(`/dentiste/ordonnance/${selectedPatient}`)}
-              >
-                💊 Émettre une ordonnance
+              <button style={s.btnOutline} onClick={() => navigate('/dentiste/dashboard')}>
+                Annuler
               </button>
             </div>
           </div>
+
         </div>
       </div>
-</Layout>
+    </Layout>
   )
 }
 
-const styles = {
- 
-  title: {
-    fontSize: '1.6rem',
-    color: '#0B1F3A',
-    fontFamily: 'Georgia, serif',
-    margin: 0,
+const s = {
+  pageTitle: {
+    fontFamily: "'Fraunces', serif", fontWeight: '400', fontSize: '36px',
+    letterSpacing: '-0.02em', color: 'var(--ink)', margin: '0 0 6px', lineHeight: '1.1',
   },
-  sub: { color: '#94A3B8', fontSize: '0.9rem', marginTop: '4px' },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1.5rem',
-    alignItems: 'start',
-  },
+  pageSub: { color: 'var(--ink-2)', fontSize: '14px', margin: 0 },
+  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' },
   card: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 4px 24px rgba(11,31,58,0.08)',
-    marginBottom: '1.5rem',
+    background: 'var(--card)', border: '1px solid var(--line)',
+    borderRadius: 'var(--radius)', padding: '24px', marginBottom: '16px',
   },
   cardTitle: {
-    fontFamily: 'Georgia, serif',
-    fontSize: '1.05rem',
-    color: '#0B1F3A',
-    margin: '0 0 1.25rem 0',
+    fontFamily: "'Fraunces', serif", fontWeight: '500', fontSize: '17px',
+    color: 'var(--ink)', margin: '0 0 20px',
   },
-  formGroup: { marginBottom: '1rem' },
+  formGroup: { marginBottom: '16px' },
   label: {
-    display: 'block',
-    fontSize: '0.82rem',
-    fontWeight: '500',
-    color: '#475569',
-    marginBottom: '5px',
+    display: 'block', fontSize: '11px', letterSpacing: '0.1em',
+    textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: '6px', fontWeight: '500',
   },
   input: {
-    width: '100%',
-    padding: '10px 12px',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '8px',
-    fontSize: '0.88rem',
-    outline: 'none',
-    background: '#F8FAFC',
-    boxSizing: 'border-box',
-    fontFamily: 'inherit',
+    width: '100%', padding: '11px 14px',
+    border: '1px solid var(--line)', borderRadius: '10px',
+    fontSize: '14px', background: 'var(--card)', color: 'var(--ink)',
+    outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
   },
   textarea: {
-    width: '100%',
-    padding: '10px 12px',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '8px',
-    fontSize: '0.88rem',
-    outline: 'none',
-    background: '#F8FAFC',
-    boxSizing: 'border-box',
-    fontFamily: 'inherit',
-    resize: 'vertical',
+    width: '100%', padding: '11px 14px',
+    border: '1px solid var(--line)', borderRadius: '10px',
+    fontSize: '14px', background: 'var(--card)', color: 'var(--ink)',
+    outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
+    resize: 'vertical', lineHeight: '1.5',
+  },
+  patientBadge: {
+    display: 'flex', alignItems: 'center', gap: '12px',
+    padding: '12px 14px', borderRadius: '10px',
+    border: '1px solid var(--line)', background: 'var(--surface)',
+  },
+  patientAvatar: {
+    width: '38px', height: '38px', borderRadius: '50%',
+    background: 'linear-gradient(135deg, var(--accent-soft), var(--accent-2))',
+    display: 'grid', placeItems: 'center',
+    color: 'white', fontWeight: '500', fontSize: '13px', flexShrink: 0,
   },
   opRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    padding: '8px 0',
-    borderBottom: '1px solid #F1F5F9',
-    fontSize: '0.88rem',
+    display: 'flex', alignItems: 'center', gap: '10px',
+    padding: '10px 0', borderBottom: '1px dashed var(--line)',
   },
   opCout: {
-    color: '#00C9A7',
-    fontWeight: '600',
-    minWidth: '80px',
-    textAlign: 'right',
+    fontFamily: '"Geist Mono", monospace', fontSize: '13px',
+    fontWeight: '500', color: 'var(--accent)', minWidth: '80px', textAlign: 'right',
   },
   btnRemove: {
-    background: '#FEE2E2',
-    color: '#991B1B',
-    border: 'none',
-    padding: '3px 8px',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.78rem',
+    width: '24px', height: '24px', borderRadius: '6px',
+    background: 'var(--rose-soft)', color: 'var(--rose)',
+    border: 'none', cursor: 'pointer', fontSize: '11px',
+    display: 'grid', placeItems: 'center', flexShrink: 0,
   },
   totalBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    background: '#E6FAF6',
-    borderRadius: '8px',
-    padding: '12px 16px',
-    marginTop: '1rem',
-  },
-  totalLabel: {
-    fontWeight: '500',
-    color: '#0B1F3A',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    background: 'var(--accent-soft)', borderRadius: '10px',
+    padding: '14px 16px', marginTop: '14px',
   },
   totalAmount: {
-    fontSize: '1.3rem',
-    fontWeight: '700',
-    color: '#00C9A7',
-    fontFamily: 'Georgia, serif',
+    fontFamily: '"Geist Mono", monospace', fontSize: '20px',
+    fontWeight: '600', color: 'var(--accent)',
   },
   btnPrimary: {
-    width: '100%',
-    padding: '13px',
-    background: '#0B1F3A',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '0.95rem',
-    fontWeight: '500',
-    cursor: 'pointer',
-    marginBottom: '0.75rem',
+    width: '100%', padding: '13px', marginBottom: '10px',
+    background: 'var(--accent)', color: '#fff', border: 'none',
+    borderRadius: '10px', fontSize: '14px', fontWeight: '500',
+    cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
   },
   btnOutline: {
-    width: '100%',
-    padding: '13px',
-    background: 'white',
-    color: '#0B1F3A',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '8px',
-    fontSize: '0.95rem',
-    fontWeight: '500',
-    cursor: 'pointer',
+    width: '100%', padding: '13px',
+    background: 'transparent', color: 'var(--ink-2)',
+    border: '1px solid var(--line-strong)', borderRadius: '10px',
+    fontSize: '14px', fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit',
   },
 }
 

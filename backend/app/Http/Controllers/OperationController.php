@@ -14,7 +14,7 @@ class OperationController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (session('role') !== 'secretaire') {
+        if ($request->user()->role !== 'secretaire') {
             abort(403);
         }
 

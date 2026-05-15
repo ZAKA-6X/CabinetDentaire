@@ -1,374 +1,248 @@
 import { useState, useEffect } from 'react'
+import { toast } from 'react-toastify'
 import Layout from '../../components/Layout'
 import api from '../../api'
 
+const FILTERS = [
+  { key: '', label: 'Tous' },
+  { key: 'EN_ATTENTE', label: 'En attente' },
+  { key: 'CONFIRMÉ',   label: 'Confirmés' },
+  { key: 'COMPLÉTÉ',   label: 'Complétés' },
+  { key: 'ANNULÉ',     label: 'Annulés' },
+]
+
+const MONTHS = ['JANV','FÉVR','MARS','AVR','MAI','JUIN','JUIL','AOÛT','SEPT','OCT','NOV','DÉC']
+const DAYS   = ['DIM','LUN','MAR','MER','JEU','VEN','SAM']
+
+const IcoCheck = () => <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+const IcoX     = () => <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+const IcoSearch= () => <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+
 function ManageAppointments() {
   const [appointments, setAppointments] = useState([])
-  const [filtered, setFiltered] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('')
-  const [search, setSearch] = useState('')
-  const [rejectModal, setRejectModal] = useState(null)
-  const [raison, setRaison] = useState('')
+  const [loading, setLoading]           = useState(true)
+  const [filter, setFilter]             = useState('')
+  const [search, setSearch]             = useState('')
+  const [rejectModal, setRejectModal]   = useState(null)
+  const [raison, setRaison]             = useState('')
 
-  useEffect(() => {
-    fetchAppointments()
-  }, [])
+  useEffect(() => { fetchAppointments() }, [])
 
   const fetchAppointments = async () => {
     try {
       const res = await api.get('/rendez-vous')
       setAppointments(res.data)
-      setFiltered(res.data)
-    } catch (err) {
-      console.error('Erreur chargement RDV')
-    } finally {
-      setLoading(false)
-    }
+    } catch { console.error('Erreur chargement RDV') }
+    finally { setLoading(false) }
   }
 
-  // ─── Filtrer ───
-  const handleFilter = (statut) => {
-    setFilter(statut)
-    applyFilters(statut, search)
-  }
+  const pName = (rdv) => `${rdv.patient?.prenom || ''} ${rdv.patient?.nom || ''}`.trim() || '—'
 
-  const handleSearch = (val) => {
-    setSearch(val)
-    applyFilters(filter, val)
-  }
+  const filtered = appointments.filter(r => {
+    const matchFilter = !filter || r.statut === filter
+    const matchSearch = !search || pName(r).toLowerCase().includes(search.toLowerCase())
+    return matchFilter && matchSearch
+  })
 
-  const patientName = (rdv) =>
-    `${rdv.patient?.prenom || ''} ${rdv.patient?.nom || ''}`.trim() || '—'
+  const countBy = (key) => appointments.filter(r => r.statut === key).length
 
-  const applyFilters = (statut, searchVal) => {
-    let result = appointments
-    if (statut) result = result.filter(r => r.statut === statut)
-    if (searchVal) result = result.filter(r =>
-      patientName(r).toLowerCase().includes(searchVal.toLowerCase())
-    )
-    setFiltered(result)
-  }
-
-  // ─── Confirmer RDV ───
   const handleConfirm = async (id) => {
     try {
       const res = await api.put(`/rendez-vous/${id}/confirm`)
-      const updated = appointments.map(r => r.id === id ? res.data : r)
-      setAppointments(updated)
-      setFiltered(updated)
-    } catch (err) {
-      alert('Erreur lors de la confirmation')
-    }
+      setAppointments(prev => prev.map(r => r.id === id ? res.data : r))
+      toast.success('Rendez-vous confirmé')
+    } catch { toast.error('Erreur lors de la confirmation') }
   }
 
   const handleReject = async () => {
-    if (!raison) { alert('Entrez une raison'); return }
+    if (!raison) { toast.warning('Entrez une raison'); return }
     try {
       const res = await api.put(`/rendez-vous/${rejectModal}/reject`, { raison })
-      const updated = appointments.map(r => r.id === rejectModal ? res.data : r)
-      setAppointments(updated)
-      setFiltered(updated)
+      setAppointments(prev => prev.map(r => r.id === rejectModal ? res.data : r))
       setRejectModal(null)
       setRaison('')
-    } catch (err) {
-      alert('Erreur lors du rejet')
-    }
+      toast.success('Rendez-vous rejeté')
+    } catch { toast.error('Erreur lors du rejet') }
   }
 
-  // ─── Badge ───
-  const getBadge = (statut) => {
-    const badges = {
-      'EN_ATTENTE': { background: '#FEF3C7', color: '#92400E' },
-      'CONFIRMÉ':   { background: '#D1FAE5', color: '#065F46' },
-      'ANNULÉ':     { background: '#FEE2E2', color: '#991B1B' },
-      'COMPLÉTÉ':   { background: '#DBEAFE', color: '#1E40AF' },
-    }
-    return badges[statut] || {}
+  const chipStyle = (statut) => ({
+    'EN_ATTENTE': { bg: 'var(--amber-soft)',   color: '#8d6a2b' },
+    'CONFIRMÉ':   { bg: 'var(--accent-soft)',  color: 'var(--accent)' },
+    'COMPLÉTÉ':   { bg: 'var(--success-soft)', color: 'var(--success)' },
+    'ANNULÉ':     { bg: 'var(--rose-soft)',    color: 'var(--rose)' },
+  })[statut] || { bg: 'var(--surface)', color: 'var(--ink-3)' }
+
+  const statutLabel = (s) => ({ EN_ATTENTE: 'En attente', CONFIRMÉ: 'Confirmé', COMPLÉTÉ: 'Complété', ANNULÉ: 'Annulé' })[s] || s
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '—'
+    const [y, m, d] = dateStr.split('-')
+    const dt = new Date(+y, +m - 1, +d)
+    return `${DAYS[dt.getDay()]}. ${+d} ${MONTHS[+m - 1]}`
   }
 
   return (
     <Layout>
-  <div>
-        <div style={styles.welcome}>
-          <h2 style={styles.title}>📋 Gestion des rendez-vous</h2>
-          <p style={styles.sub}>Confirmez ou rejetez les demandes</p>
+      <div>
+        {/* Header */}
+        <div style={{ marginBottom: '28px' }}>
+          <h1 style={s.pageTitle}>
+            Gestion des <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>rendez-vous</em>
+          </h1>
+          <p style={s.pageSub}>Confirmez ou rejetez les demandes de rendez-vous</p>
         </div>
 
-        <div style={styles.card}>
-
-          {/* Filtres */}
-          <div style={styles.filterBar}>
-            <input
-              style={styles.searchInput}
-              placeholder="🔍 Rechercher patient..."
-              value={search}
-              onChange={e => handleSearch(e.target.value)}
-            />
-            {['', 'EN_ATTENTE', 'CONFIRMÉ', 'ANNULÉ', 'COMPLÉTÉ'].map((s) => (
-              <button
-                key={s}
-                onClick={() => handleFilter(s)}
-                style={{
-                  ...styles.filterBtn,
-                  ...(filter === s ? styles.filterBtnActive : {})
-                }}
-              >
-                {s || 'Tous'}
-              </button>
-            ))}
+        {/* Filter + Search bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '22px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {FILTERS.map(f => {
+              const count = f.key === '' ? appointments.length : countBy(f.key)
+              const active = filter === f.key
+              return (
+                <button key={f.key} onClick={() => setFilter(f.key)} style={{ ...s.filterPill, ...(active ? s.filterPillActive : {}) }}>
+                  {f.label}
+                  {count > 0 && (
+                    <span style={{ ...s.filterBadge, background: active ? 'rgba(255,255,255,0.25)' : 'var(--surface)', color: active ? '#fff' : 'var(--ink-3)' }}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
-
-          {/* Table */}
-          {loading ? (
-            <p style={{ color: '#94A3B8' }}>Chargement...</p>
-          ) : filtered.length === 0 ? (
-            <div style={styles.empty}>
-              <div style={{ fontSize: '3rem' }}>📭</div>
-              <p>Aucun rendez-vous trouvé</p>
-            </div>
-          ) : (
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Patient</th>
-                  <th style={styles.th}>Date & Heure</th>
-                  <th style={styles.th}>Notes</th>
-                  <th style={styles.th}>Statut</th>
-                  <th style={styles.th}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(rdv => (
-                  <tr key={rdv.id}>
-                    <td style={styles.td}>
-                      <strong>{patientName(rdv)}</strong>
-                      <br />
-                      <small style={{ color: '#94A3B8' }}>
-                        {rdv.patient?.telephone}
-                      </small>
-                    </td>
-                    <td style={styles.td}>
-                      {rdv.date}
-                      <br />
-                      <small style={{ color: '#94A3B8' }}>
-                        {rdv.heure}
-                      </small>
-                    </td>
-                    <td style={styles.td}>{rdv.notes || '—'}</td>
-                    <td style={styles.td}>
-                      <span style={{
-                        ...styles.badge,
-                        ...getBadge(rdv.statut)
-                      }}>
-                        {rdv.statut}
-                      </span>
-                    </td>
-                    <td style={styles.td}>
-                      {rdv.statut === 'EN_ATTENTE' && (
-                        <>
-                          <button
-                            style={styles.btnConfirm}
-                            onClick={() => handleConfirm(rdv.id)}
-                          >
-                            ✓ Confirmer
-                          </button>
-                          <button
-                            style={styles.btnReject}
-                            onClick={() => setRejectModal(rdv.id)}
-                          >
-                            ✕ Rejeter
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <div style={s.searchWrap}>
+            <IcoSearch />
+            <input
+              style={s.searchInput}
+              placeholder="Rechercher un patient..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && <button onClick={() => setSearch('')} style={s.clearBtn}>✕</button>}
+          </div>
         </div>
+
+        {/* List */}
+        {loading ? (
+          <p style={{ color: 'var(--ink-3)', padding: '2rem 0' }}>Chargement...</p>
+        ) : filtered.length === 0 ? (
+          <div style={s.empty}>
+            <div style={s.emptyIcon}>
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>
+              </svg>
+            </div>
+            <p style={{ color: 'var(--ink-2)', fontFamily: "'Fraunces', serif", fontSize: '18px', margin: '0 0 4px' }}>Aucun rendez-vous</p>
+            <p style={{ color: 'var(--ink-3)', fontSize: '13px', margin: 0 }}>Essayez un autre filtre.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {filtered.map(rdv => {
+              const chip = chipStyle(rdv.statut)
+              return (
+                <div key={rdv.id} style={s.itemCard}>
+                  {/* Time block */}
+                  <div style={s.timeBlock}>
+                    <span style={s.timeHour}>{rdv.heure?.slice(0,5)?.replace(':','h')}</span>
+                    <span style={s.timeDate}>{formatDate(rdv.date)}</span>
+                  </div>
+
+                  <div style={s.divider} />
+
+                  {/* Patient info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <b style={s.patientName}>{pName(rdv)}</b>
+                    <span style={s.patientMeta}>
+                      {rdv.patient?.telephone && `${rdv.patient.telephone} · `}
+                      RDV-{String(rdv.id).padStart(4, '0')}
+                    </span>
+                    {rdv.notes && <p style={s.notes}>{rdv.notes}</p>}
+                  </div>
+
+                  {/* Status + actions */}
+                  <div style={s.actions}>
+                    <span style={{ ...s.chip, background: chip.bg, color: chip.color }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: chip.color, display: 'inline-block' }} />
+                      {statutLabel(rdv.statut)}
+                    </span>
+                    {rdv.statut === 'EN_ATTENTE' && (
+                      <>
+                        <button style={s.btnConfirm} onClick={() => handleConfirm(rdv.id)}>
+                          <IcoCheck /> Confirmer
+                        </button>
+                        <button style={s.btnReject} onClick={() => setRejectModal(rdv.id)}>
+                          <IcoX /> Rejeter
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
-      {/* ─── Modal Rejet ─── */}
-      {rejectModal && (
-        <div style={styles.overlay}>
-          <div style={styles.modal}>
-            <h3 style={styles.modalTitle}>✕ Raison du rejet</h3>
-            <textarea
-              style={styles.modalTextarea}
-              rows={4}
-              placeholder="Expliquer la raison du rejet..."
-              value={raison}
-              onChange={e => setRaison(e.target.value)}
-            />
-            <div style={styles.modalFooter}>
-              <button
-                style={styles.btnOutline}
-                onClick={() => { setRejectModal(null); setRaison('') }}
-              >
-                Annuler
-              </button>
-              <button style={styles.btnDanger} onClick={handleReject}>
-                Confirmer le rejet
-              </button>
-            </div>
+      {/* Overlay */}
+      <div style={{ position: 'fixed', inset: 0, background: '#1a201f55', backdropFilter: 'blur(4px)', zIndex: 50, opacity: rejectModal ? 1 : 0, pointerEvents: rejectModal ? 'auto' : 'none', transition: 'opacity 0.2s' }}
+        onClick={() => { setRejectModal(null); setRaison('') }}
+      />
+
+      {/* Modal rejet */}
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: rejectModal ? 'translate(-50%,-50%) scale(1)' : 'translate(-50%,-50%) scale(0.97)', opacity: rejectModal ? 1 : 0, pointerEvents: rejectModal ? 'auto' : 'none', transition: 'all 0.2s cubic-bezier(.3,.7,.2,1)', zIndex: 51, width: '100%', maxWidth: '460px', padding: '0 16px', boxSizing: 'border-box' }}>
+        <div style={s.modal}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <h2 style={s.modalTitle}>Raison du rejet</h2>
+            <button onClick={() => { setRejectModal(null); setRaison('') }} style={s.btnClose}>✕</button>
+          </div>
+          <textarea
+            style={s.textarea}
+            rows={4}
+            placeholder="Expliquer la raison du rejet..."
+            value={raison}
+            onChange={e => setRaison(e.target.value)}
+          />
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
+            <button style={s.btnOutline} onClick={() => { setRejectModal(null); setRaison('') }}>Annuler</button>
+            <button style={s.btnDanger} onClick={handleReject}>
+              <IcoX /> Confirmer le rejet
+            </button>
           </div>
         </div>
-      )}
-      </Layout>
+      </div>
+    </Layout>
   )
 }
 
-const styles = {
-  
-  title: {
-    fontSize: '1.6rem',
-    color: '#0B1F3A',
-    fontFamily: 'Georgia, serif',
-    margin: 0,
-  },
-  sub: { color: '#94A3B8', fontSize: '0.9rem', marginTop: '4px' },
-  card: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 4px 24px rgba(11,31,58,0.08)',
-  },
-  filterBar: {
-    display: 'flex',
-    gap: '8px',
-    marginBottom: '1.25rem',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-  },
-  searchInput: {
-    padding: '8px 12px',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '8px',
-    fontSize: '0.88rem',
-    outline: 'none',
-    background: '#F8FAFC',
-    minWidth: '200px',
-  },
-  filterBtn: {
-    padding: '6px 14px',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '99px',
-    background: 'white',
-    color: '#475569',
-    cursor: 'pointer',
-    fontSize: '0.82rem',
-    fontWeight: '500',
-  },
-  filterBtnActive: {
-    background: '#0B1F3A',
-    color: 'white',
-    borderColor: '#0B1F3A',
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '3rem',
-    color: '#94A3B8',
-  },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: {
-    textAlign: 'left',
-    padding: '10px 14px',
-    fontSize: '0.78rem',
-    fontWeight: '600',
-    color: '#94A3B8',
-    textTransform: 'uppercase',
-    borderBottom: '1px solid #E2E8F0',
-  },
-  td: {
-    padding: '13px 14px',
-    fontSize: '0.88rem',
-    borderBottom: '1px solid #F1F5F9',
-  },
-  badge: {
-    display: 'inline-block',
-    padding: '3px 10px',
-    borderRadius: '99px',
-    fontSize: '0.75rem',
-    fontWeight: '500',
-  },
-  btnConfirm: {
-    background: '#D1FAE5',
-    color: '#065F46',
-    border: 'none',
-    padding: '5px 12px',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.82rem',
-    marginRight: '6px',
-  },
-  btnReject: {
-    background: '#FEE2E2',
-    color: '#991B1B',
-    border: 'none',
-    padding: '5px 12px',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.82rem',
-  },
-  overlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(11,31,58,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 200,
-  },
-  modal: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    width: '100%',
-    maxWidth: '480px',
-    boxShadow: '0 8px 40px rgba(11,31,58,0.2)',
-  },
-  modalTitle: {
-    fontFamily: 'Georgia, serif',
-    color: '#0B1F3A',
-    marginBottom: '1rem',
-  },
-  modalTextarea: {
-    width: '100%',
-    padding: '10px 12px',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '8px',
-    fontSize: '0.88rem',
-    outline: 'none',
-    fontFamily: 'inherit',
-    resize: 'vertical',
-    boxSizing: 'border-box',
-    marginBottom: '1rem',
-  },
-  modalFooter: {
-    display: 'flex',
-    gap: '10px',
-    justifyContent: 'flex-end',
-  },
-  btnOutline: {
-    background: 'white',
-    color: '#475569',
-    border: '1.5px solid #E2E8F0',
-    padding: '8px 16px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.88rem',
-  },
-  btnDanger: {
-    background: '#EF4444',
-    color: 'white',
-    border: 'none',
-    padding: '8px 16px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.88rem',
-  },
+const s = {
+  pageTitle: { fontFamily: "'Fraunces', serif", fontWeight: '400', fontSize: '32px', letterSpacing: '-0.02em', color: 'var(--ink)', margin: '0 0 6px', lineHeight: 1.1 },
+  pageSub:   { color: 'var(--ink-2)', fontSize: '14px', margin: 0 },
+  filterPill: { display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '999px', fontSize: '13px', fontWeight: '450', fontFamily: 'inherit', border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-2)', cursor: 'pointer', whiteSpace: 'nowrap' },
+  filterPillActive: { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff', fontWeight: '500' },
+  filterBadge: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '18px', height: '18px', padding: '0 5px', borderRadius: '999px', fontSize: '11px', fontFamily: '"Geist Mono", monospace', fontWeight: '500' },
+  searchWrap: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '999px', border: '1px solid var(--line)', background: 'var(--card)', flex: 1, maxWidth: '280px', color: 'var(--ink-3)' },
+  searchInput: { border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: 'var(--ink)', fontFamily: 'inherit', flex: 1, minWidth: 0 },
+  clearBtn: { background: 'none', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', padding: 0, fontSize: '13px' },
+  empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '4rem 2rem', textAlign: 'center' },
+  emptyIcon: { width: '64px', height: '64px', borderRadius: '16px', background: 'var(--surface)', border: '1px solid var(--line)', display: 'grid', placeItems: 'center', marginBottom: '16px' },
+  itemCard: { display: 'grid', gridTemplateColumns: 'auto auto 1fr auto', gap: '20px', padding: '16px 20px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', alignItems: 'center' },
+  timeBlock: { textAlign: 'center', minWidth: '72px' },
+  timeHour: { fontFamily: '"Geist Mono", monospace', fontSize: '18px', fontWeight: '500', color: 'var(--ink)', display: 'block', letterSpacing: '-0.02em' },
+  timeDate: { fontSize: '10.5px', color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginTop: '2px' },
+  divider: { width: '1px', height: '36px', background: 'var(--line)' },
+  patientName: { fontSize: '14px', fontWeight: '500', color: 'var(--ink)', fontFamily: "'Fraunces', serif", display: 'block', marginBottom: '2px' },
+  patientMeta: { fontSize: '12px', color: 'var(--ink-3)', display: 'block' },
+  notes: { fontSize: '12.5px', color: 'var(--ink-3)', margin: '4px 0 0', fontStyle: 'italic' },
+  actions: { display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 },
+  chip: { display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '999px', fontSize: '11.5px', fontWeight: '500' },
+  btnConfirm: { display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderRadius: '8px', fontSize: '12.5px', fontWeight: '500', background: 'var(--success-soft)', color: 'var(--success)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' },
+  btnReject:  { display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderRadius: '8px', fontSize: '12.5px', fontWeight: '500', background: 'var(--rose-soft)', color: 'var(--rose)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' },
+  modal: { background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', padding: '28px', boxShadow: '0 24px 60px rgba(0,0,0,0.18)' },
+  modalTitle: { fontFamily: "'Fraunces', serif", fontWeight: '400', fontSize: '20px', color: 'var(--ink)', margin: 0 },
+  btnClose: { width: '32px', height: '32px', borderRadius: '8px', display: 'grid', placeItems: 'center', border: '1px solid var(--line)', background: 'var(--card)', cursor: 'pointer', fontSize: '13px', color: 'var(--ink-2)' },
+  textarea: { width: '100%', padding: '10px 12px', border: '1px solid var(--line)', borderRadius: '8px', fontSize: '13.5px', outline: 'none', background: 'var(--surface)', boxSizing: 'border-box', fontFamily: 'inherit', color: 'var(--ink)', resize: 'vertical' },
+  btnOutline: { display: 'inline-flex', alignItems: 'center', padding: '9px 16px', borderRadius: '10px', fontSize: '13.5px', fontWeight: '500', background: 'transparent', border: '1px solid var(--line)', color: 'var(--ink-2)', cursor: 'pointer', fontFamily: 'inherit' },
+  btnDanger:  { display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '10px', fontSize: '13.5px', fontWeight: '500', background: 'var(--rose)', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit' },
 }
 
 export default ManageAppointments

@@ -5,7 +5,8 @@ import { useAuth } from '../../context/AuthContext'
 import api from '../../api'
 
 const MONTHS_FR = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"]
-const fmtDate = (iso) => { const d = new Date(iso); return `${d.getDate()} ${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}` }
+const parseLocalDate = (str) => { const [y,m,d] = str.split('-'); return new Date(+y, +m-1, +d) }
+const fmtDate = (iso) => { const d = parseLocalDate(iso); return `${d.getDate()} ${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}` }
 const fmtTime = (iso) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2,'0')}h${String(d.getMinutes()).padStart(2,'0')}` }
 
 const IcoPlus     = () => <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -68,11 +69,12 @@ function PatientDashboard() {
         const rdvs = rdvRes.data || []
 
         const upcoming = rdvs.filter(r => r.statut === 'CONFIRMÉ' || r.statut === 'EN_ATTENTE')
-          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date))
+        const confirmed = rdvs.filter(r => r.statut === 'CONFIRMÉ')
 
         setNextRdv(upcoming[0] || null)
         setRecentRdv(rdvs.slice(0, 3))
-        setStats(prev => ({ ...prev, rdvAVenir: upcoming.length }))
+        setStats(prev => ({ ...prev, rdvAVenir: confirmed.length }))
       } catch (e) {
         // silent — API may not be wired yet
       } finally {
@@ -111,9 +113,9 @@ function PatientDashboard() {
           ) : nextRdv ? (
             <>
               <div style={s.heroDate}>
-                {new Date(nextRdv.date).getDate()}{' '}
+                {parseLocalDate(nextRdv.date).getDate()}{' '}
                 <em style={{ fontStyle: 'italic', fontWeight: 400 }}>
-                  {MONTHS_FR[new Date(nextRdv.date).getMonth()]}
+                  {MONTHS_FR[parseLocalDate(nextRdv.date).getMonth()]}
                 </em>
               </div>
               <div style={s.heroSub}>

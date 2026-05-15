@@ -55,7 +55,7 @@ function Navbar() {
       {/* Logo */}
       <div style={styles.logo}>
         <span style={styles.logoIcon}>🦷</span>
-        <span style={styles.logoText}>DentaApp</span>
+        <span style={styles.logoText}>HZ Dentaire</span>
       </div>
 
       {/* Liens navigation */}

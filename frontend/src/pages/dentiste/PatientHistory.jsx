@@ -3,417 +3,514 @@ import { useParams, useNavigate } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import api from '../../api'
 
-function PatientHistory() {
+// ─────────────────────────────────────────────
+//  Patients List View
+// ─────────────────────────────────────────────
+function PatientsList() {
+  const navigate = useNavigate()
+  const [patients, setPatients] = useState([])
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.get('/patients')
+      .then(res => setPatients(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const fullName = (p) => `${p.prenom || ''} ${p.nom || ''}`.trim()
+
+  const filtered = patients.filter(p =>
+    fullName(p).toLowerCase().includes(search.toLowerCase())
+  )
+
+  const initials = (name = '') =>
+    name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'
+
+  return (
+    <Layout>
+      <div>
+
+        {/* Header */}
+        <div style={{ marginBottom: '28px' }}>
+          <h1 style={s.pageTitle}>
+            Mes <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>patients</em>
+          </h1>
+          <p style={s.pageSub}>Consultez et recherchez vos patients.</p>
+        </div>
+
+        {/* Search */}
+        <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: 1, maxWidth: '420px' }}>
+            <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }}>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+            </span>
+            <input
+              type="text"
+              placeholder="Rechercher par nom..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ ...s.searchInput, paddingLeft: '38px' }}
+            />
+          </div>
+          <span style={{ fontSize: '12.5px', color: 'var(--ink-3)' }}>
+            {filtered.length} patient{filtered.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        {/* List */}
+        {loading ? (
+          <p style={{ color: 'var(--ink-3)', fontSize: '14px' }}>Chargement...</p>
+        ) : filtered.length === 0 ? (
+          <div style={s.emptyState}>
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ink-3)', marginBottom: '12px' }}>
+              <circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+              <path d="M16 3a3 3 0 0 1 0 6M21 21v-2a4 4 0 0 0-3-3.87"/>
+            </svg>
+            <p style={{ margin: 0, color: 'var(--ink-3)', fontSize: '14px' }}>Aucun patient trouvé</p>
+          </div>
+        ) : (
+          <div style={s.grid}>
+            {filtered.map(patient => (
+              <div
+                key={patient.id}
+                style={s.patientCard}
+                onClick={() => navigate(`/dentiste/patient/${patient.id}/historique`)}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
+                  <div style={s.avatar}>{initials(fullName(patient))}</div>
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={s.patientName}>{fullName(patient)}</div>
+                    <div style={s.patientMeta}>
+                      Patient depuis {patient.created_at?.slice(0, 4) || '—'}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={s.infoRow}>
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ink-3)', flexShrink: 0 }}>
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.21 3.18 2 2 0 0 1 3.22 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 8.09a16 16 0 0 0 5.83 5.83l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                  </svg>
+                  <span style={s.infoText}>{patient.telephone || '—'}</span>
+                </div>
+
+                {patient.date_naissance && (
+                  <div style={s.infoRow}>
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ink-3)', flexShrink: 0 }}>
+                      <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>
+                    </svg>
+                    <span style={s.infoText}>{patient.date_naissance}</span>
+                  </div>
+                )}
+
+                {patient.allergies && (
+                  <div style={s.allergyBadge}>
+                    Allergies : {patient.allergies}
+                  </div>
+                )}
+
+                <div style={s.viewBtn}>
+                  Voir dossier →
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Layout>
+  )
+}
+
+// ─────────────────────────────────────────────
+//  Patient Detail View
+// ─────────────────────────────────────────────
+function PatientDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  const [patients, setPatients] = useState([])
-  const [selectedPatient, setSelectedPatient] = useState(null)
+  const [patient, setPatient] = useState(null)
   const [visites, setVisites] = useState([])
   const [ordonnances, setOrdonnances] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('visites')
 
-  // ─── Charger liste patients ───
   useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        const res = await api.get('/patients')
-        setPatients(res.data)
-        if (id) {
-          const patient = res.data.find(p => p.id === parseInt(id))
-          if (patient) loadPatientData(patient)
-        }
-      } catch (err) {
-        console.error('Erreur chargement patients')
-      }
-    }
-    fetchPatients()
-  }, [])
+    Promise.all([
+      api.get('/patients'),
+      api.get(`/patient/${id}/visites`),
+      api.get(`/patient/${id}/ordonnances`),
+    ])
+      .then(([patientsRes, visitesRes, ordRes]) => {
+        const p = patientsRes.data.find(x => String(x.id) === String(id))
+        setPatient(p || null)
+        setVisites(visitesRes.data)
+        setOrdonnances(ordRes.data)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [id])
 
-  // ─── Charger données patient ───
-  const loadPatientData = async (patient) => {
-    setSelectedPatient(patient)
-    setLoading(true)
-    try {
-      const [visitesRes, ordonnancesRes] = await Promise.all([
-        api.get(`/patients/${patient.id}/visites`),
-        api.get(`/patients/${patient.id}/ordonnances`),
-      ])
-      setVisites(visitesRes.data)
-      setOrdonnances(ordonnancesRes.data)
-    } catch (err) {
-      console.error('Erreur chargement historique')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const fullName = (p) => `${p?.prenom || ''} ${p?.nom || ''}`.trim()
+  const initials = (name = '') =>
+    name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'
 
-  const handleSelectPatient = (e) => {
-    const patient = patients.find(p => p.id === parseInt(e.target.value))
-    if (patient) loadPatientData(patient)
-  }
+  if (loading) return (
+    <Layout>
+      <p style={{ color: 'var(--ink-3)', fontSize: '14px', padding: '40px 0' }}>Chargement...</p>
+    </Layout>
+  )
+
+  if (!patient) return (
+    <Layout>
+      <button style={s.backBtn} onClick={() => navigate('/dentiste/patients')}>← Retour</button>
+      <p style={{ color: 'var(--ink-3)', fontSize: '14px', marginTop: '20px' }}>Patient introuvable.</p>
+    </Layout>
+  )
 
   return (
-   <Layout>
+    <Layout>
       <div>
-        <div style={styles.welcome}>
-          <h2 style={styles.title}>👥 Historique patient</h2>
-          <p style={styles.sub}>Consultez le dossier complet du patient</p>
+
+        {/* Back */}
+        <button style={s.backBtn} onClick={() => navigate('/dentiste/patients')}>
+          ← Retour aux patients
+        </button>
+
+        {/* Header */}
+        <div style={{ marginBottom: '28px', marginTop: '20px' }}>
+          <h1 style={s.pageTitle}>
+            Dossier <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>{fullName(patient)}</em>
+          </h1>
         </div>
 
-        {/* Sélectionner patient */}
-        <div style={styles.card}>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Sélectionner un patient</label>
-            <select
-              style={{ ...styles.input, maxWidth: '350px' }}
-              onChange={handleSelectPatient}
-              defaultValue=""
-            >
-              <option value="">-- Choisir un patient --</option>
-              {patients.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.nom_complet}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <div style={s.detailGrid}>
 
-        {/* Données patient */}
-        {selectedPatient && (
-          <div style={styles.grid}>
-
-            {/* ─── Profil patient ─── */}
-            <div style={styles.card}>
-              <h3 style={styles.cardTitle}>👤 Profil patient</h3>
-
-              {/* Avatar */}
-              <div style={styles.avatarSection}>
-                <div style={styles.avatar}>
-                  {selectedPatient.nom_complet?.charAt(0)?.toUpperCase()}
+          {/* ── Left: profile ── */}
+          <div>
+            <div style={s.card}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
+                <div style={{ ...s.avatar, width: '52px', height: '52px', fontSize: '18px' }}>
+                  {initials(fullName(patient))}
                 </div>
                 <div>
-                  <strong style={{ color: '#0B1F3A', fontSize: '1rem' }}>
-                    {selectedPatient.nom_complet}
-                  </strong>
-                  <div style={{ color: '#94A3B8', fontSize: '0.82rem' }}>
-                    Patient depuis {selectedPatient.created_at?.slice(0, 4)}
+                  <div style={{ fontWeight: '600', fontSize: '15px', color: 'var(--ink)' }}>{fullName(patient)}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--ink-3)' }}>
+                    Patient depuis {patient.created_at?.slice(0, 4) || '—'}
                   </div>
                 </div>
               </div>
 
-              {/* Infos */}
-              <div style={styles.infoGrid}>
-                <div style={styles.infoItem}>
-                  <label style={styles.infoLabel}>Téléphone</label>
-                  <p style={styles.infoValue}>
-                    📞 {selectedPatient.telephone}
-                  </p>
-                </div>
-                <div style={styles.infoItem}>
-                  <label style={styles.infoLabel}>Date naissance</label>
-                  <p style={styles.infoValue}>
-                    🎂 {selectedPatient.date_naissance}
-                  </p>
-                </div>
+              <div style={s.profileField}>
+                <span style={s.fieldLabel}>Téléphone</span>
+                <span style={s.fieldValue}>{patient.telephone || '—'}</span>
               </div>
-
-              {/* Allergies */}
-              {selectedPatient.allergies && (
-                <div style={styles.alertBox}>
-                  <strong style={{ color: '#991B1B' }}>
-                    ⚠️ Allergies :
-                  </strong>
-                  <span style={{ color: '#991B1B', marginLeft: '8px' }}>
-                    {selectedPatient.allergies}
-                  </span>
+              <div style={s.profileField}>
+                <span style={s.fieldLabel}>Date de naissance</span>
+                <span style={s.fieldValue}>{patient.date_naissance || '—'}</span>
+              </div>
+              {patient.antecedents_medicaux && (
+                <div style={s.profileField}>
+                  <span style={s.fieldLabel}>Antécédents médicaux</span>
+                  <span style={s.fieldValue}>{patient.antecedents_medicaux}</span>
+                </div>
+              )}
+              {patient.allergies && (
+                <div style={{ ...s.allergyBadge, marginTop: '12px' }}>
+                  <strong>Allergies :</strong> {patient.allergies}
                 </div>
               )}
 
-              {/* Antécédents */}
-              {selectedPatient.antecedents_medicaux && (
-                <div style={styles.infoItem}>
-                  <label style={styles.infoLabel}>Antécédents médicaux</label>
-                  <p style={styles.infoValue}>
-                    {selectedPatient.antecedents_medicaux}
-                  </p>
-                </div>
-              )}
-
-              {/* Bouton nouvelle ordonnance */}
               <button
-                style={styles.btnMint}
-                onClick={() =>
-                  navigate(`/dentiste/ordonnance/${selectedPatient.id}`)
-                }
+                style={{ ...s.accentBtn, marginTop: '20px' }}
+                onClick={() => navigate(`/dentiste/visite/nouvelle`)}
               >
-                💊 Nouvelle ordonnance
+                + Nouvelle visite
               </button>
             </div>
 
-            {/* ─── Colonne droite ─── */}
-            <div>
+            {/* Stats */}
+            <div style={s.card}>
+              <div style={s.statRow}>
+                <span style={s.statLabel}>Visites totales</span>
+                <span style={s.statValue}>{visites.length}</span>
+              </div>
+              <div style={s.statRow}>
+                <span style={s.statLabel}>Ordonnances</span>
+                <span style={s.statValue}>{ordonnances.length}</span>
+              </div>
+              {visites.length > 0 && (
+                <div style={s.statRow}>
+                  <span style={s.statLabel}>Dernière visite</span>
+                  <span style={s.statValue}>{visites[0]?.date || '—'}</span>
+                </div>
+              )}
+            </div>
+          </div>
 
-              {/* Visites passées */}
-              <div style={styles.card}>
-                <h3 style={styles.cardTitle}>🏥 Visites passées</h3>
+          {/* ── Right: tabs ── */}
+          <div>
+            {/* Tabs */}
+            <div style={s.tabs}>
+              <button
+                style={{ ...s.tab, ...(activeTab === 'visites' ? s.tabActive : {}) }}
+                onClick={() => setActiveTab('visites')}
+              >
+                Visites ({visites.length})
+              </button>
+              <button
+                style={{ ...s.tab, ...(activeTab === 'ordonnances' ? s.tabActive : {}) }}
+                onClick={() => setActiveTab('ordonnances')}
+              >
+                Ordonnances ({ordonnances.length})
+              </button>
+            </div>
 
-                {loading ? (
-                  <p style={{ color: '#94A3B8' }}>Chargement...</p>
-                ) : visites.length === 0 ? (
-                  <p style={{ color: '#94A3B8' }}>Aucune visite trouvée</p>
-                ) : (
-                  visites.map(visite => (
-                    <div key={visite.id} style={styles.visiteItem}>
-                      <div style={styles.visiteDate}>
-                        {visite.date}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={styles.visiteDiag}>
-                          {visite.diagnostic}
+            {/* Visites tab */}
+            {activeTab === 'visites' && (
+              <div>
+                {visites.length === 0 ? (
+                  <div style={s.emptyState}>
+                    <p style={{ margin: 0, color: 'var(--ink-3)', fontSize: '14px' }}>Aucune visite enregistrée.</p>
+                  </div>
+                ) : visites.map(visite => (
+                  <div key={visite.id} style={s.card}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div>
+                        <div style={{ fontSize: '12px', color: 'var(--ink-3)', marginBottom: '4px' }}>
+                          {visite.date_visite}
                         </div>
-                        <div style={styles.visiteTraitement}>
-                          {visite.traitement_fourni}
+                        <div style={{ fontWeight: '600', fontSize: '14px', color: 'var(--ink)' }}>
+                          {visite.diagnostic}
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={styles.visiteMontant}>
-                          {visite.facture?.montant_total} MAD
+                        <div style={{ fontFamily: '"Geist Mono", monospace', fontWeight: '600', fontSize: '15px', color: 'var(--accent)' }}>
+                          {visite.facture?.montant_total ?? '—'} MAD
                         </div>
                         <span style={{
-                          ...styles.badge,
-                          ...(visite.facture?.statut === 'PAYÉE'
-                            ? { background: '#D1FAE5', color: '#065F46' }
-                            : { background: '#FEF3C7', color: '#92400E' })
+                          ...s.badge,
+                          ...(visite.facture?.statut === 'payee'
+                            ? { background: 'var(--success-soft, #d1fae5)', color: '#065f46' }
+                            : { background: '#fef3c7', color: '#92400e' })
                         }}>
-                          {visite.facture?.statut || 'En attente'}
+                          {visite.facture?.statut === 'payee' ? 'Payée' : visite.facture?.statut === 'en_attente' ? 'En attente' : visite.facture?.statut || '—'}
                         </span>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
 
-              {/* Ordonnances précédentes */}
-              <div style={styles.card}>
-                <h3 style={styles.cardTitle}>💊 Ordonnances précédentes</h3>
-
-                {loading ? (
-                  <p style={{ color: '#94A3B8' }}>Chargement...</p>
-                ) : ordonnances.length === 0 ? (
-                  <p style={{ color: '#94A3B8' }}>
-                    Aucune ordonnance trouvée
-                  </p>
-                ) : (
-                  ordonnances.map(ord => (
-                    <div key={ord.id} style={styles.ordItem}>
-                      <div style={styles.ordHeader}>
-                        <span style={styles.ordDate}>{ord.date}</span>
-                        <span style={{
-                          ...styles.badge,
-                          ...(ord.statut === 'ACTIF'
-                            ? { background: '#D1FAE5', color: '#065F46' }
-                            : { background: '#F1F5F9', color: '#475569' })
-                        }}>
-                          {ord.statut}
-                        </span>
+                    {visite.traitement_fourni && (
+                      <div style={{ fontSize: '13px', color: 'var(--ink-2)', marginBottom: '8px' }}>
+                        <span style={s.fieldLabel}>Traitement : </span>
+                        {visite.traitement_fourni}
                       </div>
-                      <div style={styles.ordMeds}>
-                        {ord.medicaments?.map((m, i) => (
-                          <span key={i} style={styles.medTag}>
-                            {m.nom}
+                    )}
+
+                    {visite.notes && (
+                      <div style={{ fontSize: '13px', color: 'var(--ink-2)' }}>
+                        <span style={s.fieldLabel}>Notes : </span>
+                        {visite.notes}
+                      </div>
+                    )}
+
+                    {visite.operations?.length > 0 && (
+                      <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {visite.operations.map((op, i) => (
+                          <span key={i} style={s.opTag}>{op.nom_operation} · {op.cout} MAD</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Ordonnances tab */}
+            {activeTab === 'ordonnances' && (
+              <div>
+                {ordonnances.length === 0 ? (
+                  <div style={s.emptyState}>
+                    <p style={{ margin: 0, color: 'var(--ink-3)', fontSize: '14px' }}>Aucune ordonnance trouvée.</p>
+                  </div>
+                ) : ordonnances.map(ord => (
+                  <div key={ord.id} style={s.card}>
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--ink-3)' }}>{ord.date_delivrance}</div>
+                    </div>
+
+                    {ord.instructions_generales && (
+                      <div style={{ fontSize: '13px', color: 'var(--ink-2)', marginBottom: '10px' }}>{ord.instructions_generales}</div>
+                    )}
+
+                    {ord.medicaments?.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {ord.medicaments.map((m, i) => (
+                          <span key={i} style={s.medTag}>
+                            {m.medicament?.nom || `Méd. #${m.medicament_id}`}
+                            {m.frequence ? ` — ${m.frequence}` : ''}
                           </span>
                         ))}
                       </div>
-                    </div>
-                  ))
-                )}
+                    )}
+                  </div>
+                ))}
               </div>
-
-            </div>
+            )}
           </div>
-        )}
-       </div>
-</Layout>
+
+        </div>
+      </div>
+    </Layout>
   )
 }
 
-const styles = {
-  
-  title: {
-    fontSize: '1.6rem',
-    color: '#0B1F3A',
-    fontFamily: 'Georgia, serif',
-    margin: 0,
+// ─────────────────────────────────────────────
+//  Router: list vs detail
+// ─────────────────────────────────────────────
+function PatientHistory() {
+  const { id } = useParams()
+  return id ? <PatientDetail /> : <PatientsList />
+}
+
+const s = {
+  pageTitle: {
+    fontFamily: "'Fraunces', serif", fontWeight: '400', fontSize: '36px',
+    letterSpacing: '-0.02em', color: 'var(--ink)', margin: '0 0 6px', lineHeight: '1.1',
   },
-  sub: { color: '#94A3B8', fontSize: '0.9rem', marginTop: '4px' },
-  card: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 4px 24px rgba(11,31,58,0.08)',
-    marginBottom: '1.5rem',
+  pageSub: { color: 'var(--ink-2)', fontSize: '14px', margin: 0 },
+
+  searchInput: {
+    width: '100%', padding: '10px 14px',
+    border: '1px solid var(--line)', borderRadius: '10px',
+    fontSize: '14px', background: 'var(--card)', color: 'var(--ink)',
+    outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
   },
-  cardTitle: {
-    fontFamily: 'Georgia, serif',
-    fontSize: '1.05rem',
-    color: '#0B1F3A',
-    margin: '0 0 1.25rem 0',
-  },
-  formGroup: { marginBottom: '1rem' },
-  label: {
-    display: 'block',
-    fontSize: '0.82rem',
-    fontWeight: '500',
-    color: '#475569',
-    marginBottom: '5px',
-  },
-  input: {
-    width: '100%',
-    padding: '10px 12px',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '8px',
-    fontSize: '0.88rem',
-    outline: 'none',
-    background: '#F8FAFC',
-    boxSizing: 'border-box',
-    fontFamily: 'inherit',
-  },
+
   grid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1.5fr',
-    gap: '1.5rem',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gap: '16px',
+  },
+
+  detailGrid: {
+    display: 'grid',
+    gridTemplateColumns: '280px 1fr',
+    gap: '20px',
     alignItems: 'start',
   },
-  avatarSection: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    marginBottom: '1.25rem',
-    padding: '1rem',
-    background: '#F8FAFC',
-    borderRadius: '8px',
+
+  patientCard: {
+    background: 'var(--card)', border: '1px solid var(--line)',
+    borderRadius: 'var(--radius)', padding: '20px',
+    cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s',
   },
+
+  card: {
+    background: 'var(--card)', border: '1px solid var(--line)',
+    borderRadius: 'var(--radius)', padding: '20px', marginBottom: '16px',
+  },
+
   avatar: {
-    width: '55px',
-    height: '55px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #B2F0E8, #00C9A7)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '1.3rem',
-    fontWeight: '600',
-    color: '#0B1F3A',
-    flexShrink: 0,
+    width: '42px', height: '42px', borderRadius: '50%', flexShrink: 0,
+    background: 'linear-gradient(135deg, var(--accent-soft, #c9d6d1), var(--accent))',
+    display: 'grid', placeItems: 'center',
+    color: '#fff', fontWeight: '600', fontSize: '15px',
   },
-  infoGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1rem',
-    marginBottom: '1rem',
+
+  patientName: {
+    fontWeight: '600', fontSize: '14px', color: 'var(--ink)',
+    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
   },
-  infoItem: { marginBottom: '0.75rem' },
-  infoLabel: {
-    fontSize: '0.75rem',
-    color: '#94A3B8',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-    display: 'block',
-    marginBottom: '3px',
+  patientMeta: { fontSize: '11.5px', color: 'var(--ink-3)', marginTop: '2px' },
+
+  infoRow: {
+    display: 'flex', alignItems: 'center', gap: '7px',
+    fontSize: '12.5px', color: 'var(--ink-2)', marginBottom: '6px',
   },
-  infoValue: {
-    fontSize: '0.88rem',
-    color: '#0B1F3A',
-    fontWeight: '500',
-    margin: 0,
+  infoText: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+
+  allergyBadge: {
+    background: '#fef2f2', border: '1px solid #fecaca',
+    borderRadius: '8px', padding: '6px 10px',
+    fontSize: '12px', color: '#991b1b', marginTop: '6px',
   },
-  alertBox: {
-    background: '#FEF2F2',
-    border: '1px solid #FECACA',
-    borderRadius: '8px',
-    padding: '10px 14px',
-    marginBottom: '1rem',
+
+  viewBtn: {
+    marginTop: '14px', paddingTop: '12px',
+    borderTop: '1px solid var(--line)',
+    fontSize: '12.5px', fontWeight: '500',
+    color: 'var(--accent)', textAlign: 'right',
   },
-  btnMint: {
-    background: '#00C9A7',
-    color: 'white',
-    border: 'none',
-    padding: '10px 20px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.88rem',
-    fontWeight: '500',
-    width: '100%',
-    marginTop: '0.5rem',
+
+  backBtn: {
+    background: 'none', border: 'none', cursor: 'pointer',
+    fontSize: '13.5px', color: 'var(--ink-2)', padding: '0',
+    fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '4px',
   },
-  visiteItem: {
-    display: 'flex',
-    gap: '1rem',
-    padding: '1rem',
-    border: '1px solid #E2E8F0',
-    borderRadius: '8px',
-    marginBottom: '0.75rem',
-    alignItems: 'flex-start',
+
+  profileField: {
+    display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '12px',
   },
-  visiteDate: {
-    fontSize: '0.82rem',
-    color: '#94A3B8',
-    minWidth: '80px',
-    fontWeight: '500',
+  fieldLabel: {
+    fontSize: '10.5px', letterSpacing: '0.08em', textTransform: 'uppercase',
+    color: 'var(--ink-3)', fontWeight: '500',
   },
-  visiteDiag: {
-    fontSize: '0.88rem',
-    fontWeight: '500',
-    color: '#0B1F3A',
+  fieldValue: { fontSize: '13.5px', color: 'var(--ink)' },
+
+  statRow: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '8px 0', borderBottom: '1px solid var(--line)',
   },
-  visiteTraitement: {
-    fontSize: '0.82rem',
-    color: '#94A3B8',
-    marginTop: '3px',
+  statLabel: { fontSize: '13px', color: 'var(--ink-2)' },
+  statValue: { fontSize: '14px', fontWeight: '600', color: 'var(--ink)' },
+
+  accentBtn: {
+    width: '100%', padding: '11px',
+    background: 'var(--accent)', color: '#fff', border: 'none',
+    borderRadius: '10px', fontSize: '13.5px', fontWeight: '500',
+    cursor: 'pointer', fontFamily: 'inherit',
   },
-  visiteMontant: {
-    fontSize: '0.95rem',
-    fontWeight: '600',
-    color: '#0B1F3A',
+
+  tabs: {
+    display: 'flex', gap: '4px',
+    background: 'var(--surface)', borderRadius: '10px',
+    padding: '4px', marginBottom: '16px',
+    border: '1px solid var(--line)',
   },
+  tab: {
+    flex: 1, padding: '8px 12px',
+    border: 'none', borderRadius: '7px',
+    fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+    background: 'transparent', color: 'var(--ink-3)', fontFamily: 'inherit',
+    transition: 'all 0.15s',
+  },
+  tabActive: {
+    background: 'var(--card)', color: 'var(--ink)',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+  },
+
   badge: {
-    display: 'inline-block',
-    padding: '3px 10px',
-    borderRadius: '99px',
-    fontSize: '0.75rem',
-    fontWeight: '500',
+    display: 'inline-block', padding: '3px 9px',
+    borderRadius: '99px', fontSize: '11.5px', fontWeight: '500',
   },
-  ordItem: {
-    border: '1px solid #E2E8F0',
-    borderRadius: '8px',
-    padding: '1rem',
-    marginBottom: '0.75rem',
-  },
-  ordHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '0.5rem',
-  },
-  ordDate: {
-    fontSize: '0.82rem',
-    color: '#94A3B8',
-    fontWeight: '500',
-  },
-  ordMeds: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '6px',
+
+  opTag: {
+    background: 'var(--accent-soft, #e8f0ee)', color: 'var(--accent)',
+    padding: '3px 10px', borderRadius: '99px',
+    fontSize: '11.5px', fontWeight: '500',
   },
   medTag: {
-    background: '#EEF2FF',
-    color: '#3730A3',
-    padding: '3px 10px',
-    borderRadius: '99px',
-    fontSize: '0.78rem',
-    fontWeight: '500',
+    background: '#eef2ff', color: '#3730a3',
+    padding: '3px 10px', borderRadius: '99px',
+    fontSize: '11.5px', fontWeight: '500',
+  },
+
+  emptyState: {
+    background: 'var(--surface)', border: '1px dashed var(--line)',
+    borderRadius: 'var(--radius)', padding: '40px',
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
   },
 }
 

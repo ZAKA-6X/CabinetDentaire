@@ -1,19 +1,44 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import Layout from '../../components/Layout'
+import { confirmDialog } from '../../components/DialogProvider'
 import api from '../../api'
 
+const FILTERS = [
+  { key: '', label: 'Tous' },
+  { key: 'EN_ATTENTE', label: 'En attente' },
+  { key: 'CONFIRMÉ', label: 'Confirmés' },
+  { key: 'COMPLÉTÉ', label: 'Complétés' },
+  { key: 'ANNULÉ', label: 'Annulés' },
+]
+
 function MyAppointments() {
+  const navigate = useNavigate()
   const [appointments, setAppointments] = useState([])
-  const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
+  const [detail, setDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+
+  const openDetail = async (id) => {
+    setDetailLoading(true)
+    setDetail({ id })
+    try {
+      const res = await api.get(`/rendez-vous/${id}`)
+      setDetail(res.data)
+    } catch {
+      setDetail(null)
+    } finally {
+      setDetailLoading(false)
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await api.get('/rendez-vous')
         setAppointments(res.data)
-        setFiltered(res.data)
       } catch (err) {
         console.error('Erreur chargement RDV')
       } finally {
@@ -23,206 +48,430 @@ function MyAppointments() {
     fetchData()
   }, [])
 
-  // ─── Filtrer par statut ───
-  const handleFilter = (statut) => {
-    setFilter(statut)
-    if (!statut) {
-      setFiltered(appointments)
-    } else {
-      setFiltered(appointments.filter(r => r.statut === statut))
-    }
-  }
-
-  // ─── Annuler un RDV ───
   const handleCancel = async (id) => {
-    if (!window.confirm('Confirmer l\'annulation ?')) return
+    if (!await confirmDialog('Annuler ce rendez-vous ?', { danger: true, confirmLabel: 'Oui, annuler' })) return
     try {
       await api.delete(`/rendez-vous/${id}`)
-      const updated = appointments.map(r =>
+      setAppointments(appointments.map(r =>
         r.id === id ? { ...r, statut: 'ANNULÉ' } : r
-      )
-      setAppointments(updated)
-      setFiltered(updated)
-    } catch (err) {
-      alert('Erreur lors de l\'annulation')
+      ))
+      toast.success('Rendez-vous annulé')
+    } catch {
+      toast.error("Erreur lors de l'annulation")
     }
   }
 
-  // ─── Badge couleur selon statut ───
-  const getBadge = (statut) => {
-    const badges = {
-      'EN_ATTENTE': { background: '#FEF3C7', color: '#92400E' },
-      'CONFIRMÉ':   { background: '#D1FAE5', color: '#065F46' },
-      'ANNULÉ':     { background: '#FEE2E2', color: '#991B1B' },
-      'COMPLÉTÉ':   { background: '#DBEAFE', color: '#1E40AF' },
+  const filtered = filter
+    ? appointments.filter(r => r.statut === filter)
+    : appointments
+
+  const countBy = (key) => appointments.filter(r => r.statut === key).length
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return ''
+    const [y, m, day] = dateStr.split('-')
+    const d = new Date(+y, +m - 1, +day)
+    const days = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM']
+    const months = ['JANV', 'FÉVR', 'MARS', 'AVR', 'MAI', 'JUIN', 'JUIL', 'AOÛT', 'SEPT', 'OCT', 'NOV', 'DÉC']
+    return `${days[d.getDay()]}. ${d.getDate()} ${months[d.getMonth()]}`
+  }
+
+  const chipStyle = (statut) => {
+    const map = {
+      'EN_ATTENTE': { background: 'var(--amber-soft)', color: '#8d6a2b', dot: 'var(--gold)' },
+      'CONFIRMÉ':   { background: 'var(--accent-soft)', color: 'var(--accent)', dot: 'var(--accent)' },
+      'COMPLÉTÉ':   { background: 'var(--success-soft)', color: 'var(--success)', dot: 'var(--success)' },
+      'ANNULÉ':     { background: 'var(--rose-soft)', color: 'var(--rose)', dot: 'var(--rose)' },
     }
-    return badges[statut] || { background: '#F1F5F9', color: '#475569' }
+    return map[statut] || map['EN_ATTENTE']
   }
 
   return (
     <Layout>
-     <div>
-        <div style={styles.welcome}>
-          <h2 style={styles.title}>📋 Mes rendez-vous</h2>
-          <p style={styles.sub}>Historique de tous vos rendez-vous</p>
+      <div>
+
+        {/* ─── Header ─── */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px' }}>
+          <div>
+            <h1 style={styles.pageTitle}>
+              Mes <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>rendez-vous</em>
+            </h1>
+            <p style={styles.pageSub}>
+              Retrouvez toutes vos réservations — en attente, confirmées, passées.
+            </p>
+          </div>
+          <button
+            style={styles.btnPrimary}
+            onClick={() => navigate('/patient/reserver')}
+          >
+            + Nouveau rendez-vous
+          </button>
         </div>
 
-        <div style={styles.card}>
-
-          {/* Filtre statut */}
-          <div style={styles.filterBar}>
-            {['', 'EN_ATTENTE', 'CONFIRMÉ', 'ANNULÉ', 'COMPLÉTÉ'].map(s => (
+        {/* ─── Filtres ─── */}
+        <div style={styles.filterBar}>
+          {FILTERS.map(f => {
+            const count = f.key === '' ? appointments.length : countBy(f.key)
+            const active = filter === f.key
+            return (
               <button
-                key={s}
-                onClick={() => handleFilter(s)}
+                key={f.key}
+                onClick={() => setFilter(f.key)}
                 style={{
-                  ...styles.filterBtn,
-                  ...(filter === s ? styles.filterBtnActive : {})
+                  ...styles.filterPill,
+                  ...(active ? styles.filterPillActive : {}),
                 }}
               >
-                {s || 'Tous'}
+                {f.label}
+                {count > 0 && (
+                  <span style={{
+                    ...styles.filterBadge,
+                    background: active ? 'rgba(255,255,255,0.25)' : 'var(--surface)',
+                    color: active ? '#fff' : 'var(--ink-3)',
+                  }}>
+                    {count}
+                  </span>
+                )}
               </button>
-            ))}
-          </div>
-
-          {/* Table */}
-          {loading ? (
-            <p style={{ color: '#94A3B8' }}>Chargement...</p>
-          ) : filtered.length === 0 ? (
-            <div style={styles.empty}>
-              <div style={{ fontSize: '3rem' }}>📭</div>
-              <p>Aucun rendez-vous trouvé</p>
-            </div>
-          ) : (
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Date & Heure</th>
-                  <th style={styles.th}>Dentiste</th>
-                  <th style={styles.th}>Notes</th>
-                  <th style={styles.th}>Statut</th>
-                  <th style={styles.th}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(rdv => (
-                  <tr key={rdv.id}>
-                    <td style={styles.td}>
-                      <strong>{rdv.date}</strong>
-                      <br />
-                      <small style={{ color: '#94A3B8' }}>
-                        {rdv.heure?.slice(0, 5)}
-                      </small>
-                    </td>
-                    <td style={styles.td}>
-                      Dr. {rdv.dentiste?.nom_complet}
-                    </td>
-                    <td style={styles.td}>
-                      {rdv.notes || '—'}
-                    </td>
-                    <td style={styles.td}>
-                      <span style={{
-                        ...styles.badge,
-                        ...getBadge(rdv.statut)
-                      }}>
-                        {rdv.statut}
-                      </span>
-                    </td>
-                    <td style={styles.td}>
-                      {rdv.statut === 'EN_ATTENTE' && (
-                        <button
-                          style={styles.btnCancel}
-                          onClick={() => handleCancel(rdv.id)}
-                        >
-                          Annuler
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+            )
+          })}
         </div>
+
+        {/* ─── Liste RDV ─── */}
+        {loading ? (
+          <p style={{ color: 'var(--ink-3)', padding: '2rem 0' }}>Chargement...</p>
+        ) : filtered.length === 0 ? (
+          <div style={styles.empty}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📭</div>
+            <p>Aucun rendez-vous trouvé</p>
+          </div>
+        ) : (
+          filtered.map(rdv => {
+            const chip = chipStyle(rdv.statut)
+            return (
+              <div key={rdv.id} style={styles.apptCard}>
+
+                {/* Heure + date */}
+                <div style={styles.apptTime}>
+                  <div style={styles.apptHour}>
+                    {rdv.heure?.slice(0, 5)?.replace(':', 'h')}
+                  </div>
+                  <div style={styles.apptDate}>
+                    {formatDate(rdv.date)}
+                  </div>
+                </div>
+
+                {/* Séparateur */}
+                <div style={styles.apptDivider}/>
+
+                {/* Info */}
+                <div style={{ flex: 1 }}>
+                  <b style={styles.apptTitle}>
+                    {rdv.notes || 'Rendez-vous médical'}
+                  </b>
+                  <small style={styles.apptMeta}>
+                    avec Dr. {rdv.dentiste?.nom_complet || 'Médecin'} · {rdv.id ? `RDV-${String(rdv.id).padStart(4, '0')}` : ''}
+                  </small>
+                </div>
+
+                {/* Statut + actions */}
+                <div style={styles.apptActions}>
+                  {/* Chip statut */}
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                    padding: '3px 10px', borderRadius: '999px',
+                    fontSize: '11.5px', fontWeight: '500',
+                    background: chip.background, color: chip.color,
+                  }}>
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: chip.dot }}/>
+                    {rdv.statut === 'EN_ATTENTE' ? 'En attente' :
+                     rdv.statut === 'CONFIRMÉ' ? 'Confirmé' :
+                     rdv.statut === 'COMPLÉTÉ' ? 'Complété' : 'Annulé'}
+                  </span>
+
+                  <button style={styles.btnGhost} onClick={() => openDetail(rdv.id)}>Détails</button>
+
+                  {rdv.statut === 'EN_ATTENTE' && (
+                    <button
+                      style={styles.btnDanger}
+                      onClick={() => handleCancel(rdv.id)}
+                    >
+                      Annuler
+                    </button>
+                  )}
+                </div>
+
+              </div>
+            )
+          })
+        )}
       </div>
-  </Layout>
+
+      {/* ─── Overlay ─── */}
+      <div
+        style={{
+          position: 'fixed', inset: 0,
+          background: '#1a201f55',
+          backdropFilter: 'blur(4px)',
+          zIndex: 50,
+          opacity: detail ? 1 : 0,
+          pointerEvents: detail ? 'auto' : 'none',
+          transition: 'opacity 0.2s',
+        }}
+        onClick={() => setDetail(null)}
+      />
+
+      {/* ─── Drawer ─── */}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0,
+        width: '480px', maxWidth: '94vw',
+        background: 'var(--bg)',
+        zIndex: 51,
+        transform: detail ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 0.3s cubic-bezier(.3,.7,.2,1)',
+        display: 'flex', flexDirection: 'column',
+        boxShadow: '-20px 0 60px #1a201f22',
+      }}>
+        {detail && (
+          <>
+            {/* Header */}
+            <div style={{ padding: '22px 28px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--surface)' }}>
+              <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: '400', fontSize: '22px', margin: 0, letterSpacing: '-0.01em', color: 'var(--ink)', flex: 1 }}>
+                RDV-{String(detail.id).padStart(4, '0')}
+              </h2>
+              <button
+                onClick={() => setDetail(null)}
+                style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'grid', placeItems: 'center', border: '1px solid var(--line)', background: 'var(--card)', cursor: 'pointer', fontSize: '14px', color: 'var(--ink-2)' }}
+              >✕</button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px 28px', overflow: 'auto', flex: 1 }}>
+              {detailLoading ? (
+                <p style={{ color: 'var(--ink-3)' }}>Chargement...</p>
+              ) : (
+                <>
+                  {/* Statut chip */}
+                  <div style={{ marginBottom: '20px' }}>
+                    {(() => {
+                      const c = chipStyle(detail.statut)
+                      return (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '3px 10px', borderRadius: '999px', fontSize: '11.5px', fontWeight: '500', background: c.background, color: c.color }}>
+                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: c.dot }}/>
+                          {detail.statut === 'EN_ATTENTE' ? 'En attente' :
+                           detail.statut === 'CONFIRMÉ'   ? 'Confirmé' :
+                           detail.statut === 'COMPLÉTÉ'   ? 'Complété' : 'Annulé'}
+                        </span>
+                      )
+                    })()}
+                  </div>
+
+                  {/* Rows */}
+                  {[
+                    { label: 'DATE',    value: formatDate(detail.date) },
+                    { label: 'HEURE',   value: detail.heure?.slice(0, 5)?.replace(':', 'h') },
+                    { label: 'DURÉE',   value: `${detail.duration} min` },
+                    detail.raison && { label: 'RAISON',  value: detail.raison },
+                    detail.notes  && { label: 'NOTES',   value: detail.notes },
+                  ].filter(Boolean).map(row => (
+                    <div key={row.label} style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '16px', padding: '10px 0', borderBottom: '1px dashed var(--line)' }}>
+                      <label style={{ fontSize: '11.5px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>{row.label}</label>
+                      <span style={{ fontSize: '13.5px', color: 'var(--ink)' }}>{row.value}</span>
+                    </div>
+                  ))}
+
+                  {/* Patient info */}
+                  {detail.patient && (
+                    <>
+                      <h3 style={{ fontFamily: "'Fraunces', serif", fontWeight: '500', fontSize: '15px', color: 'var(--accent)', paddingBottom: '6px', borderBottom: '1px solid var(--line)', margin: '22px 0 0' }}>
+                        Patient
+                      </h3>
+                      {[
+                        { label: 'NOM',       value: `${detail.patient.prenom} ${detail.patient.nom}` },
+                        detail.patient.telephone && { label: 'TÉLÉPHONE', value: detail.patient.telephone },
+                      ].filter(Boolean).map(row => (
+                        <div key={row.label} style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '16px', padding: '10px 0', borderBottom: '1px dashed var(--line)' }}>
+                          <label style={{ fontSize: '11.5px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>{row.label}</label>
+                          <span style={{ fontSize: '13.5px', color: 'var(--ink)' }}>{row.value}</span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            {detail.statut === 'EN_ATTENTE' && (
+              <div style={{ padding: '16px 28px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
+                <button
+                  style={{ width: '100%', padding: '10px 16px', borderRadius: '10px', fontSize: '13.5px', fontWeight: '500', background: 'transparent', border: '1px solid var(--rose-soft)', color: 'var(--rose)', cursor: 'pointer', fontFamily: 'inherit' }}
+                  onClick={() => { handleCancel(detail.id); setDetail(null) }}
+                >
+                  Annuler ce rendez-vous
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+    </Layout>
   )
 }
 
 const styles = {
- 
-  title: {
-    fontSize: '1.6rem',
-    color: '#0B1F3A',
-    fontFamily: 'Georgia, serif',
+  pageTitle: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: '400',
+    fontSize: '36px',
+    letterSpacing: '-0.02em',
+    color: 'var(--ink)',
+    margin: '0 0 6px',
+    lineHeight: '1.1',
+  },
+  pageSub: {
+    color: 'var(--ink-2)',
+    fontSize: '14px',
     margin: 0,
   },
-  sub: { color: '#94A3B8', fontSize: '0.9rem', marginTop: '4px' },
-  card: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 4px 24px rgba(11,31,58,0.08)',
+  btnPrimary: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '10px 16px',
+    borderRadius: '10px',
+    fontSize: '13.5px',
+    fontWeight: '500',
+    background: 'var(--accent)',
+    color: '#fff',
+    border: 'none',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    flexShrink: 0,
   },
   filterBar: {
     display: 'flex',
-    gap: '8px',
-    marginBottom: '1.25rem',
+    gap: '6px',
     flexWrap: 'wrap',
+    marginBottom: '22px',
   },
-  filterBtn: {
-    padding: '6px 14px',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '99px',
-    background: 'white',
-    color: '#475569',
+  filterPill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '7px 14px',
+    borderRadius: '999px',
+    fontSize: '13px',
+    fontWeight: '450',
+    fontFamily: 'inherit',
+    border: '1px solid var(--line)',
+    background: 'var(--card)',
+    color: 'var(--ink-2)',
     cursor: 'pointer',
-    fontSize: '0.82rem',
+    transition: 'all 0.15s',
+    whiteSpace: 'nowrap',
+  },
+  filterPillActive: {
+    background: 'var(--accent)',
+    borderColor: 'var(--accent)',
+    color: '#fff',
     fontWeight: '500',
   },
-  filterBtnActive: {
-    background: '#0B1F3A',
-    color: 'white',
-    borderColor: '#0B1F3A',
+  filterBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '18px',
+    height: '18px',
+    padding: '0 5px',
+    borderRadius: '999px',
+    fontSize: '11px',
+    fontFamily: '"Geist Mono", monospace',
+    fontWeight: '500',
   },
   empty: {
     textAlign: 'center',
-    padding: '3rem',
-    color: '#94A3B8',
+    padding: '4rem',
+    color: 'var(--ink-3)',
   },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
+  apptCard: {
+    display: 'grid',
+    gridTemplateColumns: 'auto auto 1fr auto',
+    gap: '20px',
+    padding: '18px 22px',
+    background: 'var(--card)',
+    border: '1px solid var(--line)',
+    borderRadius: 'var(--radius)',
+    marginBottom: '10px',
+    alignItems: 'center',
+    transition: 'border-color 0.15s',
   },
-  th: {
-    textAlign: 'left',
-    padding: '10px 14px',
-    fontSize: '0.78rem',
-    fontWeight: '600',
-    color: '#94A3B8',
-    textTransform: 'uppercase',
-    borderBottom: '1px solid #E2E8F0',
+  apptTime: {
+    textAlign: 'center',
+    minWidth: '80px',
   },
-  td: {
-    padding: '13px 14px',
-    fontSize: '0.88rem',
-    borderBottom: '1px solid #F1F5F9',
-  },
-  badge: {
-    display: 'inline-block',
-    padding: '3px 10px',
-    borderRadius: '99px',
-    fontSize: '0.75rem',
+  apptHour: {
+    fontFamily: '"Geist Mono", monospace',
+    fontSize: '20px',
     fontWeight: '500',
+    letterSpacing: '-0.02em',
+    color: 'var(--ink)',
   },
-  btnCancel: {
-    background: '#FEE2E2',
-    color: '#991B1B',
-    border: 'none',
-    padding: '5px 12px',
-    borderRadius: '6px',
+  apptDate: {
+    fontSize: '11px',
+    color: 'var(--ink-3)',
+    marginTop: '2px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+  },
+  apptDivider: {
+    width: '1px',
+    height: '40px',
+    background: 'var(--line)',
+  },
+  apptTitle: {
+    fontSize: '14.5px',
+    fontWeight: '500',
+    fontFamily: "'Fraunces', serif",
+    display: 'block',
+    marginBottom: '3px',
+    color: 'var(--ink)',
+  },
+  apptMeta: {
+    color: 'var(--ink-3)',
+    fontSize: '12.5px',
+  },
+  apptActions: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center',
+  },
+  btnGhost: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '6px 11px',
+    borderRadius: '8px',
+    fontSize: '12.5px',
+    fontWeight: '500',
+    background: 'transparent',
+    border: '1px solid var(--line-strong)',
+    color: 'var(--ink)',
     cursor: 'pointer',
-    fontSize: '0.82rem',
+    fontFamily: 'inherit',
+  },
+  btnDanger: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '6px 11px',
+    borderRadius: '8px',
+    fontSize: '12.5px',
+    fontWeight: '500',
+    background: 'transparent',
+    border: '1px solid var(--rose-soft)',
+    color: 'var(--rose)',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
   },
 }
 

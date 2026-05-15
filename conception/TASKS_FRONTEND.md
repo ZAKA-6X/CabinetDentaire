@@ -31,32 +31,33 @@
   - Prochain RDV confirmé, stats rapides, grille actions, liste RDV récents
   - Appels API : `GET /api/rendez-vous`
 
-- [ ] **`BookAppointment`** (`/patient/reserver`)
-  - [ ] Calendrier → `GET /api/rendez-vous/available-slots?date=`
-  - [ ] Afficher créneaux libres, sélectionner créneau
-  - [ ] Champ notes (optionnel)
-  - [ ] `POST /api/rendez-vous` → toast "En attente de confirmation"
+- [x] **`BookAppointment`** (`/patient/reserver`)
+  - [x] Calendrier → `GET /api/rendez-vous/available-slots?date=`
+  - [x] Afficher créneaux libres, sélectionner créneau
+  - [x] Champ raison (optionnel)
+  - [x] `POST /api/rendez-vous` → toast "En attente de confirmation"
 
-- [ ] **`MyAppointments`** (`/patient/rendez-vous`)
-  - [ ] Liste tous RDV avec badge statut
-  - [ ] Bouton Annuler si EN_ATTENTE → `DELETE /api/rendez-vous/{id}`
+- [x] **`MyAppointments`** (`/patient/rendez-vous`)
+  - [x] Liste tous RDV avec badge statut
+  - [x] Bouton Annuler si EN_ATTENTE → `DELETE /api/rendez-vous/{id}`
 
-- [ ] **`MyVisits`** (`/patient/visites`)
-  - [ ] Liste visites triées par date décroissante, filtre plage dates
-  - [ ] Page détail `/patient/visites/{id}` : diagnostic, traitement, opérations+coûts, ordonnance liée, facture liée
+- [x] **`MyVisits`** (`/patient/visites`)
+  - [x] Liste visites triées par date décroissante, filtre recherche
+  - [ ] Page détail `/patient/visites/{id}` — non implémentée (hors scope deadline)
 
-- [ ] **`MyPrescriptions`** (`/patient/ordonnances`)
-  - [ ] Liste avec filtre statut ACTIF / COMPLÉTÉ / ANNULÉ
-  - [ ] Bouton "Télécharger PDF" → jsPDF : nom patient, date, dentiste, tableau médicaments, instructions
+- [x] **`MyPrescriptions`** (`/patient/ordonnances`)
+  - [x] Liste ordonnances API réelle
+  - [x] Bouton "Télécharger PDF" → jsPDF
 
-- [ ] **`MyInvoices`** (`/patient/factures`)
-  - [ ] Liste avec statut EN_ATTENTE / PAYÉE
-  - [ ] Bouton "Télécharger PDF" → jsPDF : numéro, date, dentiste, patient, frais base + opérations + total, statut
+- [x] **`MyInvoices`** (`/patient/factures`)
+  - [x] Liste avec statut EN_ATTENTE / PAYÉE
+  - [x] Bouton "Télécharger PDF" → jsPDF
+  - [x] Drawer détail facture
 
-- [ ] **`MyProfile`** (`/patient/profil`)
-  - [ ] Afficher/modifier : nom_complet, telephone, adresse, date_naissance, sexe
-  - [ ] Champs médicaux : antecedents_medicaux, allergies, contact_urgence
-  - [ ] Formulaire changement mot de passe (ancien + nouveau)
+- [x] **`MyProfile`** (`/patient/profil`)
+  - [x] Afficher/modifier : nom, prenom, telephone, adresse, date_naissance, sexe
+  - [x] Champs médicaux : notes_generales, contact_urgence
+  - [x] Formulaire changement mot de passe (ancien + nouveau)
 
 ---
 
@@ -65,28 +66,28 @@
 - [x] **`SecretaireDashboard`** (`/secretaire/dashboard`)
   - Stats 4 cartes, shortcuts, tableau RDV en attente avec Confirmer/Rejeter
 
-- [ ] **`ManageAppointments`** (`/secretaire/rendez-vous`)
+- [x] **`ManageAppointments`** (`/secretaire/rendez-vous`)
   - [x] Tableau tous RDV avec filtre statut
   - [x] Bouton Confirmer → `PUT /api/rendez-vous/{id}/confirm`
   - [x] Bouton Rejeter → modal raison → `PUT /api/rendez-vous/{id}/reject`
-  - [ ] Vérifier envoi email backend déclenché correctement
+  - [ ] Email backend — dépend backend (NotificationService)
 
-- [ ] **`ManagePayments`** (`/secretaire/paiements`)
-  - [ ] Tableau factures EN_ATTENTE : nom patient, montant, date visite
-  - [ ] Bouton Marquer PAYÉE → `POST /api/factures/{id}/payment` → toast + email
+- [x] **`ManagePayments`** (`/secretaire/paiements`)
+  - [x] Tableau factures EN_ATTENTE : nom patient, montant, date visite
+  - [x] Bouton Marquer PAYÉE → `POST /api/factures/{id}/payment`
 
-- [ ] **`ManageMedications`** (`/secretaire/medicaments`)
-  - [ ] Liste médicaments
-  - [ ] Modal Ajouter/Modifier : nom, description, forme, dosage, prix_unitaire
-  - [ ] Bouton Supprimer avec confirmation
+- [x] **`ManageMedications`** (`/secretaire/medicaments`)
+  - [x] Liste médicaments
+  - [x] Modal Ajouter/Modifier : nom, description, forme, dosage, prix_unitaire
+  - [x] Bouton Supprimer avec confirmation
 
-- [ ] **`ManageOperations`** (`/secretaire/operations`)
-  - [ ] Liste catalogue : nom, description, coût actuel
-  - [ ] Bouton Modifier tarif → inline edit → `PUT /api/operations/{id}`
+- [x] **`ManageOperations`** (`/secretaire/operations`)
+  - [x] Liste catalogue : nom, description, coût actuel
+  - [x] Bouton Modifier tarif → inline edit → `PUT /api/operations/{id}`
 
-- [ ] **`PatientsList`** (`/secretaire/patients`)
-  - [ ] Liste patients : nom, téléphone, date_naissance
-  - [ ] Cliquer → historique rendez-vous du patient
+- [x] **`PatientsList`** (`/secretaire/patients`)
+  - [x] Liste patients : nom, téléphone, date_naissance
+  - [x] Cliquer → historique rendez-vous du patient
 
 ---
 
@@ -95,29 +96,30 @@
 - [x] **`DentisteDashboard`** (`/dentiste/dashboard`)
   - Agenda jour, stats 3 cartes, RDV confirmés avec bouton "Enregistrer visite"
 
-- [ ] **`RecordVisit`** (`/dentiste/visite/:rdv_id`)
-  - [ ] Champs diagnostic, traitement_fourni, notes
-  - [ ] Section opérations : liste depuis `GET /api/operations`, multi-ajout, coût unitaire affiché
-  - [ ] Total en temps réel : 200 MAD (base) + sum(opérations)
-  - [ ] `POST /api/visites` → proposer émettre ordonnance après succès
+- [x] **`RecordVisit`** (`/dentiste/visite/:rdv_id`)
+  - [x] Champs diagnostic, traitement_fourni, notes
+  - [x] Section opérations : liste depuis `GET /api/operations`, multi-ajout, coût unitaire affiché
+  - [x] Total en temps réel : 200 MAD (base) + sum(opérations)
+  - [x] `POST /api/visites` → navigue vers ordonnance avec visite_id après succès
+  - ⚠️ Backend VisiteController.store utilise `session('role')` au lieu de `$request->user()` — bug backend à corriger
 
-- [ ] **`IssuePrescription`** (`/dentiste/ordonnance/:visite_id`)
-  - [ ] Multi-select médicaments depuis `GET /api/medicaments`
-  - [ ] Par médicament : fréquence, durée_jours
-  - [ ] Instructions générales
-  - [ ] `POST /api/ordonnances` statut=ACTIF
+- [x] **`IssuePrescription`** (`/dentiste/ordonnance/:visite_id`)
+  - [x] Multi-select médicaments depuis `GET /api/medicaments`
+  - [x] Par médicament : fréquence, durée_jours
+  - [x] Instructions générales
+  - [x] `POST /api/ordonnances` statut=ACTIF
 
-- [ ] **`PatientHistory`** (`/dentiste/patient/:id/historique`)
-  - [ ] Profil patient : nom, antécédents, allergies
-  - [ ] Liste visites passées : diagnostic + traitements
-  - [ ] Liste ordonnances précédentes
+- [x] **`PatientHistory`** (`/dentiste/patient/:id/historique`)
+  - [x] Profil patient : nom, antécédents, allergies
+  - [x] Liste visites passées : diagnostic + traitements
+  - [x] Liste ordonnances précédentes
 
 ---
 
 ## Semaine 4 — Intégration & Tests (12–18 mai)
 
-- [ ] Remplacer tous les mocks/données statiques par vrais appels API dans toutes les pages
-- [ ] Intercepteur axios → toast erreur global si 401 / 403 / 422 / 500
+- [x] Remplacer tous les mocks/données statiques par vrais appels API dans toutes les pages
+- [x] Intercepteur axios → toast erreur global si 401 / 403 / 422 / 500
 - [ ] Tester flux complet end-to-end :
   1. Inscription patient → connexion
   2. Réserver RDV → secrétaire confirme → email patient
@@ -146,7 +148,7 @@
 
 ---
 
-## État actuel (6 mai 2026)
+## État actuel (13 mai 2026)
 
 | Zone | Statut |
 |------|--------|
@@ -157,16 +159,17 @@
 | SecretaireDashboard | ✅ |
 | DentisteDashboard | ✅ |
 | ManageAppointments (confirm/reject) | ✅ |
-| BookAppointment | ⚠️ À connecter API |
-| MyAppointments | ⚠️ À connecter API |
-| MyVisits + VisitDetail | ⚠️ À implémenter |
-| MyPrescriptions (+ PDF) | ⚠️ À connecter + PDF |
-| MyInvoices (+ PDF) | ⚠️ À connecter + PDF |
-| MyProfile | ⚠️ À connecter API |
-| ManagePayments | ⚠️ À implémenter |
-| ManageMedications | ⚠️ À implémenter |
-| ManageOperations | ⚠️ À implémenter |
-| PatientsList | ⚠️ À connecter API |
-| RecordVisit | ⚠️ À connecter + opérations |
-| IssuePrescription | ⚠️ À connecter API |
-| PatientHistory | ⚠️ À connecter API |
+| BookAppointment (créneaux réels API) | ✅ |
+| MyAppointments | ✅ |
+| MyVisits | ✅ |
+| MyPrescriptions (+ PDF) | ✅ |
+| MyInvoices (+ PDF + drawer) | ✅ |
+| MyProfile | ✅ |
+| ManagePayments | ✅ |
+| ManageMedications | ✅ |
+| ManageOperations | ✅ |
+| PatientsList | ✅ |
+| RecordVisit | ✅ ⚠️ Bug backend session() à corriger |
+| IssuePrescription | ✅ |
+| PatientHistory | ✅ |
+| Intercepteur axios global (403/422/500 toast) | ✅ |

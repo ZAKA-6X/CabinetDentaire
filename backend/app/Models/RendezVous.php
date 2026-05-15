@@ -7,6 +7,8 @@ use Carbon\Carbon;
 
 class RendezVous extends Model
 {
+    protected $table = 'rendez_vous';
+
     protected $fillable = [
         'patient_id', 'dentiste_id', 'secretaire_id',
         'date_heure', 'duree', 'raison', 'statut', 'notes', 'confirme_le',

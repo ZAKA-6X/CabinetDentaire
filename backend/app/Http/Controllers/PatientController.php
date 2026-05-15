@@ -10,39 +10,35 @@ use Illuminate\Http\Request;
 
 class PatientController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $role = session('role');
+        $role = $request->user()->role;
 
         if (!in_array($role, ['secretaire', 'dentiste'])) {
             abort(403);
         }
 
-        return Patient::all();
+        return response()->json(Patient::all());
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $role   = session('role');
-        $userId = session('user');
-
+        $user    = $request->user();
         $patient = Patient::findOrFail($id);
 
-        if ($role === 'patient' && $patient->utilisateur_id !== $userId) {
+        if ($user->role === 'patient' && $patient->utilisateur_id !== $user->id) {
             abort(403);
         }
 
-        return $patient;
+        return response()->json($patient);
     }
 
     public function update(Request $request, $id)
     {
-        $role   = session('role');
-        $userId = session('user');
-
+        $user    = $request->user();
         $patient = Patient::findOrFail($id);
 
-        if ($role === 'patient' && $patient->utilisateur_id !== $userId) {
+        if ($user->role === 'patient' && $patient->utilisateur_id !== $user->id) {
             abort(403);
         }
 
@@ -62,24 +58,22 @@ class PatientController extends Controller
             'date_naissance', 'sexe', 'contact_urgence', 'notes_generales',
         ]));
 
-        return redirect('/dashboard')->with('success', 'Patient updated avec succès!');
+        return response()->json($patient->fresh());
     }
 
-    public function history($id)
+    public function history(Request $request, $id)
     {
-        $role   = session('role');
-        $userId = session('user');
-
+        $user    = $request->user();
         $patient = Patient::findOrFail($id);
 
-        if ($role === 'patient' && $patient->utilisateur_id !== $userId) {
+        if ($user->role === 'patient' && $patient->utilisateur_id !== $user->id) {
             abort(403);
         }
 
         return response()->json([
-            'visites'      => Visite::where('patient_id', $id)->get(),
-            'ordonnances'  => Ordonnance::where('patient_id', $id)->get(),
-            'factures'     => Facture::where('patient_id', $id)->get(),
+            'visites'     => Visite::where('patient_id', $id)->get(),
+            'ordonnances' => Ordonnance::where('patient_id', $id)->get(),
+            'factures'    => Facture::where('patient_id', $id)->get(),
         ]);
     }
 }

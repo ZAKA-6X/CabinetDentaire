@@ -14,7 +14,7 @@ class OrdonnanceController extends Controller
 {
     public function store(Request $request)
     {
-        if (session('role') !== 'dentiste') {
+        if ($request->user()->role !== 'dentiste') {
             abort(403);
         }
 
@@ -22,13 +22,13 @@ class OrdonnanceController extends Controller
             'visite_id'              => 'required|exists:visites,id',
             'instructions_generales' => 'nullable|string',
             'medicaments'            => 'required|array|min:1',
-            'medicaments.*.medicament_id'        => 'required|exists:medicaments,id',
-            'medicaments.*.frequence'            => 'required|string',
-            'medicaments.*.duree_jours'          => 'required|integer|min:1',
+            'medicaments.*.medicament_id' => 'required|exists:medicaments,id',
+            'medicaments.*.frequence'     => 'required|string',
+            'medicaments.*.duree_jours'   => 'required|integer|min:1',
             'medicaments.*.instructions_speciales' => 'nullable|string',
         ]);
 
-        $dentisteId = Dentiste::where('utilisateur_id', session('user'))->value('id');
+        $dentisteId = Dentiste::where('utilisateur_id', $request->user()->id)->value('id');
 
         $ordonnance = DB::transaction(function () use ($request, $dentisteId) {
             $ordonnance = Ordonnance::create([
@@ -42,11 +42,11 @@ class OrdonnanceController extends Controller
 
             foreach ($request->medicaments as $med) {
                 OrdonnanceMedicament::create([
-                    'ordonnance_id'         => $ordonnance->id,
-                    'medicament_id'         => $med['medicament_id'],
-                    'frequence'             => $med['frequence'],
-                    'duree_jours'           => $med['duree_jours'],
-                    'instructions_speciales'=> $med['instructions_speciales'] ?? null,
+                    'ordonnance_id'          => $ordonnance->id,
+                    'medicament_id'          => $med['medicament_id'],
+                    'frequence'              => $med['frequence'],
+                    'duree_jours'            => $med['duree_jours'],
+                    'instructions_speciales' => $med['instructions_speciales'] ?? null,
                 ]);
             }
 
@@ -58,15 +58,13 @@ class OrdonnanceController extends Controller
         return response()->json($ordonnance->load('medicaments'), 201);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $role   = session('role');
-        $userId = session('user');
-
+        $user       = $request->user();
         $ordonnance = Ordonnance::with('medicaments')->findOrFail($id);
 
-        if ($role === 'patient') {
-            $patientId = Patient::where('utilisateur_id', $userId)->value('id');
+        if ($user->role === 'patient') {
+            $patientId = Patient::where('utilisateur_id', $user->id)->value('id');
             if ($ordonnance->patient_id !== $patientId) abort(403);
         }
 
@@ -75,15 +73,14 @@ class OrdonnanceController extends Controller
 
     public function patientOrdonnances(Request $request, $id)
     {
-        $role   = session('role');
-        $userId = session('user');
+        $user = $request->user();
 
-        if ($role === 'patient') {
-            $patientId = Patient::where('utilisateur_id', $userId)->value('id');
+        if ($user->role === 'patient') {
+            $patientId = Patient::where('utilisateur_id', $user->id)->value('id');
             if ((int)$id !== $patientId) abort(403);
         }
 
-        $query = Ordonnance::with('medicaments')->where('patient_id', $id);
+        $query = Ordonnance::with('medicaments.medicament')->where('patient_id', $id);
 
         if ($request->statut) {
             $query->where('statut', $request->statut);

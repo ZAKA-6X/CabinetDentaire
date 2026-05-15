@@ -1,223 +1,139 @@
 import { useState, useEffect } from 'react'
+import { toast } from 'react-toastify'
 import Layout from '../../components/Layout'
 import api from '../../api'
 
+const IcoEdit = () => <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+const IcoSave = () => <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+const IcoX    = () => <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+
 function ManageOperations() {
   const [operations, setOperations] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [editId, setEditId] = useState(null)
-  const [editCout, setEditCout] = useState('')
+  const [loading, setLoading]       = useState(true)
+  const [editId, setEditId]         = useState(null)
+  const [editCout, setEditCout]     = useState('')
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await api.get('/operations')
-        setOperations(res.data)
-      } catch (err) {
-        console.error('Erreur chargement opérations')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
+    api.get('/operations')
+      .then(res => setOperations(res.data))
+      .catch(() => console.error('Erreur chargement opérations'))
+      .finally(() => setLoading(false))
   }, [])
 
-  // ─── Modifier tarif ───
   const handleSave = async (id) => {
-    if (!editCout) { alert('Entrez un tarif'); return }
+    if (!editCout) { toast.warning('Entrez un tarif'); return }
     try {
       await api.put(`/operations/${id}`, { cout: editCout })
-      setOperations(operations.map(op =>
-        op.id === id ? { ...op, cout: editCout } : op
-      ))
+      setOperations(prev => prev.map(op => op.id === id ? { ...op, cout: editCout } : op))
       setEditId(null)
       setEditCout('')
-      alert('✅ Tarif mis à jour')
-    } catch (err) {
-      alert('Erreur lors de la mise à jour')
-    }
+      toast.success('Tarif mis à jour')
+    } catch { toast.error('Erreur lors de la mise à jour') }
   }
 
   return (
     <Layout>
-  <div>
-        <div style={styles.welcome}>
-          <h2 style={styles.title}>⚙️ Catalogue des opérations</h2>
-          <p style={styles.sub}>Gérez les tarifs des opérations dentaires</p>
+      <div>
+        {/* Header */}
+        <div style={{ marginBottom: '28px' }}>
+          <h1 style={s.pageTitle}>
+            Catalogue des <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>opérations</em>
+          </h1>
+          <p style={s.pageSub}>Gérez les tarifs des opérations dentaires</p>
         </div>
 
-        <div style={styles.card}>
-          {loading ? (
-            <p style={{ color: '#94A3B8' }}>Chargement...</p>
-          ) : operations.length === 0 ? (
-            <div style={styles.empty}>
-              <div style={{ fontSize: '3rem' }}>⚙️</div>
-              <p>Aucune opération trouvée</p>
+        {loading ? (
+          <p style={{ color: 'var(--ink-3)', padding: '2rem 0' }}>Chargement...</p>
+        ) : operations.length === 0 ? (
+          <div style={s.empty}>
+            <div style={s.emptyIcon}>
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
             </div>
-          ) : (
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Opération</th>
-                  <th style={styles.th}>Description</th>
-                  <th style={styles.th}>Coût actuel</th>
-                  <th style={styles.th}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {operations.map(op => (
-                  <tr key={op.id}>
-                    <td style={styles.td}>
-                      <strong>{op.nom}</strong>
-                    </td>
-                    <td style={styles.td}>
-                      {op.description || '—'}
-                    </td>
-                    <td style={styles.td}>
+            <p style={{ color: 'var(--ink-2)', fontFamily: "'Fraunces', serif", fontSize: '18px', margin: '0 0 4px' }}>Aucune opération</p>
+            <p style={{ color: 'var(--ink-3)', fontSize: '13px', margin: 0 }}>Le catalogue est vide.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {operations.map(op => {
+              const editing = editId === op.id
+              return (
+                <div key={op.id} style={{ ...s.itemCard, ...(editing ? s.itemCardEditing : {}) }}>
 
-                      {/* Mode édition */}
-                      {editId === op.id ? (
-                        <div style={styles.editRow}>
-                          <input
-                            style={styles.editInput}
-                            type="number"
-                            value={editCout}
-                            onChange={e => setEditCout(e.target.value)}
-                            placeholder="Nouveau tarif"
-                            autoFocus
-                          />
-                          <span style={{ color: '#94A3B8' }}>MAD</span>
-                        </div>
-                      ) : (
-                        <strong style={{ color: '#0B1F3A' }}>
-                          {op.cout} MAD
-                        </strong>
-                      )}
-                    </td>
-                    <td style={styles.td}>
+                  {/* Icon */}
+                  <div style={s.opIcon}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                  </div>
 
-                      {/* Boutons selon mode */}
-                      {editId === op.id ? (
-                        <>
-                          <button
-                            style={styles.btnSave}
-                            onClick={() => handleSave(op.id)}
-                          >
-                            💾 Enregistrer
-                          </button>
-                          <button
-                            style={styles.btnCancel}
-                            onClick={() => {
-                              setEditId(null)
-                              setEditCout('')
-                            }}
-                          >
-                            Annuler
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          style={styles.btnEdit}
-                          onClick={() => {
-                            setEditId(op.id)
-                            setEditCout(op.cout)
-                          }}
-                        >
-                          ✏️ Modifier tarif
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <b style={s.opName}>{op.nom}</b>
+                    {op.description && <p style={s.opDesc}>{op.description}</p>}
+                  </div>
+
+                  {/* Cost + actions */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                    {editing ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          style={s.editInput}
+                          type="number"
+                          value={editCout}
+                          onChange={e => setEditCout(e.target.value)}
+                          placeholder="Tarif"
+                          autoFocus
+                        />
+                        <span style={{ fontSize: '12.5px', color: 'var(--ink-3)', fontFamily: '"Geist Mono", monospace' }}>MAD</span>
+                      </div>
+                    ) : (
+                      <span style={s.costBadge}>
+                        {parseFloat(op.cout || 0).toFixed(2)} MAD
+                      </span>
+                    )}
+
+                    {editing ? (
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button style={s.btnSave} onClick={() => handleSave(op.id)}>
+                          <IcoSave /> Enregistrer
                         </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                        <button style={s.btnCancel} onClick={() => { setEditId(null); setEditCout('') }}>
+                          <IcoX />
+                        </button>
+                      </div>
+                    ) : (
+                      <button style={s.btnEdit} onClick={() => { setEditId(op.id); setEditCout(op.cout) }}>
+                        <IcoEdit /> Modifier tarif
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
-</Layout>
+    </Layout>
   )
 }
 
-const styles = {
- 
-  title: {
-    fontSize: '1.6rem',
-    color: '#0B1F3A',
-    fontFamily: 'Georgia, serif',
-    margin: 0,
-  },
-  sub: { color: '#94A3B8', fontSize: '0.9rem', marginTop: '4px' },
-  card: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 4px 24px rgba(11,31,58,0.08)',
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '3rem',
-    color: '#94A3B8',
-  },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: {
-    textAlign: 'left',
-    padding: '10px 14px',
-    fontSize: '0.78rem',
-    fontWeight: '600',
-    color: '#94A3B8',
-    textTransform: 'uppercase',
-    borderBottom: '1px solid #E2E8F0',
-  },
-  td: {
-    padding: '13px 14px',
-    fontSize: '0.88rem',
-    borderBottom: '1px solid #F1F5F9',
-    verticalAlign: 'middle',
-  },
-  editRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  editInput: {
-    padding: '7px 10px',
-    border: '1.5px solid #00C9A7',
-    borderRadius: '8px',
-    fontSize: '0.88rem',
-    outline: 'none',
-    width: '120px',
-    fontFamily: 'inherit',
-  },
-  btnEdit: {
-    background: '#EEF2FF',
-    color: '#3730A3',
-    border: 'none',
-    padding: '6px 14px',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.82rem',
-    fontWeight: '500',
-  },
-  btnSave: {
-    background: '#00C9A7',
-    color: 'white',
-    border: 'none',
-    padding: '6px 14px',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.82rem',
-    fontWeight: '500',
-    marginRight: '6px',
-  },
-  btnCancel: {
-    background: '#F1F5F9',
-    color: '#475569',
-    border: 'none',
-    padding: '6px 14px',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.82rem',
-  },
+const s = {
+  pageTitle: { fontFamily: "'Fraunces', serif", fontWeight: '400', fontSize: '32px', letterSpacing: '-0.02em', color: 'var(--ink)', margin: '0 0 6px', lineHeight: 1.1 },
+  pageSub:   { color: 'var(--ink-2)', fontSize: '14px', margin: 0 },
+  empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '4rem 2rem', textAlign: 'center' },
+  emptyIcon: { width: '64px', height: '64px', borderRadius: '16px', background: 'var(--surface)', border: '1px solid var(--line)', display: 'grid', placeItems: 'center', marginBottom: '16px' },
+  itemCard: { display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 20px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', transition: 'border-color 0.15s' },
+  itemCardEditing: { borderColor: 'var(--accent)' },
+  opIcon: { width: '40px', height: '40px', borderRadius: '10px', background: 'var(--accent-soft)', color: 'var(--accent)', display: 'grid', placeItems: 'center', flexShrink: 0 },
+  opName: { fontSize: '14.5px', fontWeight: '500', color: 'var(--ink)', fontFamily: "'Fraunces', serif", display: 'block', marginBottom: '2px' },
+  opDesc: { fontSize: '12.5px', color: 'var(--ink-3)', margin: 0 },
+  costBadge: { fontFamily: '"Geist Mono", monospace', fontSize: '14px', fontWeight: '600', color: 'var(--ink)', padding: '5px 12px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--line)' },
+  editInput: { width: '110px', padding: '8px 10px', border: '1px solid var(--accent)', borderRadius: '8px', fontSize: '13.5px', outline: 'none', background: 'var(--surface)', fontFamily: '"Geist Mono", monospace', color: 'var(--ink)', boxSizing: 'border-box' },
+  btnEdit:   { display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '8px', fontSize: '12.5px', fontWeight: '500', background: 'var(--accent-soft)', color: 'var(--accent)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' },
+  btnSave:   { display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: '8px', fontSize: '12.5px', fontWeight: '500', background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit' },
+  btnCancel: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink-3)', cursor: 'pointer' },
 }
 
 export default ManageOperations

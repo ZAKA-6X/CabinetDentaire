@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrdonnanceMedicament extends Model
 {
+    public function medicament() { return $this->belongsTo(Medicament::class); }
+
     protected $fillable = [
         'ordonnance_id',
         'medicament_id',

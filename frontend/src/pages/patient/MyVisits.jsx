@@ -1,235 +1,222 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import api from '../../api'
 
+const MONTHS_SHORT = ['JANV','FÉVR','MARS','AVR','MAI','JUIN','JUIL','AOÛT','SEPT','OCT','NOV','DÉC']
+
 function MyVisits() {
-  const navigate = useNavigate()
   const [visits, setVisits] = useState([])
   const [loading, setLoading] = useState(true)
-  const [dateDebut, setDateDebut] = useState('')
-  const [dateFin, setDateFin] = useState('')
+  const [error, setError] = useState(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
-    fetchVisits()
+    const fetchData = async () => {
+      try {
+        const meRes = await api.get('/me')
+        const patientId = meRes.data.profile.id
+        const res = await api.get(`/patient/${patientId}/visites`)
+        setVisits(res.data)
+      } catch {
+        setError(true)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
   }, [])
 
-  const fetchVisits = async () => {
-    try {
-      const res = await api.get('/visites')
-      setVisits(res.data)
-    } catch (err) {
-      console.error('Erreur chargement visites')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // ─── Filtrer par dates ───
-  const handleFilter = async () => {
-    try {
-      setLoading(true)
-      const res = await api.get(`/visites?date_debut=${dateDebut}&date_fin=${dateFin}`)
-      setVisits(res.data)
-    } catch (err) {
-      console.error('Erreur filtre')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // ─── Badge facture ───
-  const getBadge = (statut) => {
-    if (statut === 'PAYÉE') return { background: '#D1FAE5', color: '#065F46' }
-    return { background: '#FEF3C7', color: '#92400E' }
-  }
+  const filtered = search
+    ? visits.filter(v =>
+        v.diagnostic?.toLowerCase().includes(search.toLowerCase()) ||
+        v.traitement_fourni?.toLowerCase().includes(search.toLowerCase())
+      )
+    : visits
 
   return (
-   <Layout>
-  <div>
-        <div style={styles.welcome}>
-          <h2 style={styles.title}>🏥 Mes visites</h2>
-          <p style={styles.sub}>Historique de toutes vos visites</p>
+    <Layout>
+      <div>
+
+        {/* Header */}
+        <div style={{ marginBottom: '28px' }}>
+          <h1 style={styles.pageTitle}>
+            Mes <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>visites</em>
+          </h1>
+          <p style={styles.pageSub}>
+            Historique complet — diagnostics, traitements, opérations et ordonnances associées.
+          </p>
         </div>
 
-        <div style={styles.card}>
-
-          {/* Filtre dates */}
-          <div style={styles.filterBar}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Date début</label>
-              <input
-                type="date"
-                value={dateDebut}
-                onChange={e => setDateDebut(e.target.value)}
-                style={styles.input}
-              />
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Date fin</label>
-              <input
-                type="date"
-                value={dateFin}
-                onChange={e => setDateFin(e.target.value)}
-                style={styles.input}
-              />
-            </div>
-            <button style={styles.btnFilter} onClick={handleFilter}>
-              🔍 Filtrer
-            </button>
-            <button style={styles.btnReset} onClick={() => {
-              setDateDebut('')
-              setDateFin('')
-              fetchVisits()
-            }}>
-              Réinitialiser
-            </button>
+        {/* Recherche */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '22px' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <svg style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)' }} viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+            </svg>
+            <input
+              placeholder="Rechercher dans diagnostics, traitements..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                width: '100%',
+                border: '1px solid var(--line)',
+                borderRadius: '10px',
+                padding: '11px 14px 11px 38px',
+                fontSize: '13.5px',
+                background: 'var(--card)',
+                outline: 'none',
+                boxSizing: 'border-box',
+                color: 'var(--ink)',
+              }}
+            />
           </div>
-
-          {/* Table */}
-          {loading ? (
-            <p style={{ color: '#94A3B8' }}>Chargement...</p>
-          ) : visits.length === 0 ? (
-            <div style={styles.empty}>
-              <div style={{ fontSize: '3rem' }}>📭</div>
-              <p>Aucune visite trouvée</p>
-            </div>
-          ) : (
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Date</th>
-                  <th style={styles.th}>Diagnostic</th>
-                  <th style={styles.th}>Traitement</th>
-                  <th style={styles.th}>Facture</th>
-                  <th style={styles.th}>Détails</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visits.map(visite => (
-                  <tr key={visite.id}>
-                    <td style={styles.td}>
-                      <strong>{visite.date}</strong>
-                    </td>
-                    <td style={styles.td}>{visite.diagnostic}</td>
-                    <td style={styles.td}>{visite.traitement_fourni}</td>
-                    <td style={styles.td}>
-                      <span style={{
-                        ...styles.badge,
-                        ...getBadge(visite.facture?.statut)
-                      }}>
-                        {visite.facture?.statut || 'En attente'}
-                      </span>
-                    </td>
-                    <td style={styles.td}>
-                      <button
-                        style={styles.btnDetail}
-                        onClick={() => navigate(`/patient/visites/${visite.id}`)}
-                      >
-                        Voir →
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <button style={{
+            padding: '10px 16px',
+            border: '1px solid var(--line-strong)',
+            borderRadius: '10px',
+            background: 'var(--card)',
+            fontSize: '13px',
+            color: 'var(--ink-2)',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}>
+            Filtrer par date
+          </button>
         </div>
+
+        {/* Liste visites */}
+        {loading ? (
+          <p style={{ color: 'var(--ink-3)' }}>Chargement...</p>
+        ) : error ? (
+          <div style={styles.empty}>
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚠️</div>
+            <p>Impossible de charger les visites. Vérifiez votre connexion.</p>
+          </div>
+        ) : (
+          <div style={styles.card}>
+            {filtered.map((visite, i) => {
+              const d = new Date(visite.date_visite)
+              const day   = isNaN(d) ? '—' : d.getDate()
+              const month = isNaN(d) ? '—' : MONTHS_SHORT[d.getMonth()]
+              const year  = isNaN(d) ? '' : d.getFullYear()
+              const title = visite.diagnostic || visite.traitement_fourni || 'Visite médicale'
+              return (
+                <div key={visite.id} style={{
+                  ...styles.visitRow,
+                  borderBottom: i < filtered.length - 1 ? '1px solid var(--line)' : 'none',
+                }}>
+
+                  {/* Date */}
+                  <div style={styles.visitDate}>
+                    <div style={styles.visitDay}>{day}</div>
+                    <div style={styles.visitMonth}>{month}</div>
+                    <div style={styles.visitYear}>{year}</div>
+                  </div>
+
+                  {/* Contenu */}
+                  <div style={{ flex: 1 }}>
+                    <b style={styles.visitTitle}>{title}</b>
+                    <small style={styles.visitMeta}>
+                      visite V-{String(visite.id).padStart(4, '0')}
+                    </small>
+                    {visite.traitement_fourni && (
+                      <p style={styles.visitDiag}>{visite.traitement_fourni}</p>
+                    )}
+                  </div>
+
+                  {/* Droite */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                    <span style={{ ...styles.chip, background: 'var(--success-soft)', color: 'var(--success)' }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }}/>
+                      Complété
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: 'var(--accent)' }}>
+                      {visite.ordonnance && <span style={{ cursor: 'pointer' }}>· Ordonnance</span>}
+                      {visite.facture && <span style={{ cursor: 'pointer' }}>· Facture</span>}
+                    </div>
+                  </div>
+
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
-</Layout>
+    </Layout>
   )
 }
 
 const styles = {
-  
-  title: {
-    fontSize: '1.6rem',
-    color: '#0B1F3A',
-    fontFamily: 'Georgia, serif',
-    margin: 0,
+  pageTitle: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: '400',
+    fontSize: '36px',
+    letterSpacing: '-0.02em',
+    color: 'var(--ink)',
+    margin: '0 0 6px',
+    lineHeight: '1.1',
   },
-  sub: { color: '#94A3B8', fontSize: '0.9rem', marginTop: '4px' },
+  pageSub: { color: 'var(--ink-2)', fontSize: '14px', margin: 0 },
   card: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    boxShadow: '0 4px 24px rgba(11,31,58,0.08)',
+    background: 'var(--card)',
+    border: '1px solid var(--line)',
+    borderRadius: 'var(--radius)',
+    padding: '0 22px',
   },
-  filterBar: {
-    display: 'flex',
-    gap: '1rem',
-    marginBottom: '1.25rem',
-    alignItems: 'flex-end',
-    flexWrap: 'wrap',
+  visitRow: {
+    display: 'grid',
+    gridTemplateColumns: '90px 1fr auto',
+    gap: '20px',
+    padding: '20px 0',
+    alignItems: 'start',
   },
-  formGroup: { display: 'flex', flexDirection: 'column' },
-  label: {
-    fontSize: '0.82rem',
-    color: '#475569',
-    fontWeight: '500',
-    marginBottom: '4px',
+  visitDate: { paddingTop: '2px' },
+  visitDay: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: '28px',
+    fontWeight: '400',
+    lineHeight: '1',
+    letterSpacing: '-0.02em',
+    color: 'var(--ink)',
   },
-  input: {
-    padding: '8px 12px',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '8px',
-    fontSize: '0.88rem',
-    outline: 'none',
-    background: '#F8FAFC',
-  },
-  btnFilter: {
-    padding: '8px 16px',
-    background: '#0B1F3A',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.88rem',
-  },
-  btnReset: {
-    padding: '8px 16px',
-    background: 'white',
-    color: '#475569',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '0.88rem',
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '3rem',
-    color: '#94A3B8',
-  },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: {
-    textAlign: 'left',
-    padding: '10px 14px',
-    fontSize: '0.78rem',
-    fontWeight: '600',
-    color: '#94A3B8',
+  visitMonth: {
+    fontSize: '11px',
     textTransform: 'uppercase',
-    borderBottom: '1px solid #E2E8F0',
+    letterSpacing: '0.12em',
+    color: 'var(--ink-3)',
+    marginTop: '2px',
   },
-  td: {
-    padding: '13px 14px',
-    fontSize: '0.88rem',
-    borderBottom: '1px solid #F1F5F9',
+  visitYear: {
+    fontSize: '11px',
+    color: 'var(--ink-3)',
+    marginTop: '1px',
   },
-  badge: {
-    display: 'inline-block',
-    padding: '3px 10px',
-    borderRadius: '99px',
-    fontSize: '0.75rem',
+  visitTitle: {
+    fontSize: '14px',
     fontWeight: '500',
+    display: 'block',
+    marginBottom: '3px',
+    color: 'var(--ink)',
   },
-  btnDetail: {
-    background: '#F1F5F9',
-    color: '#0B1F3A',
-    border: 'none',
-    padding: '5px 12px',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.82rem',
+  visitMeta: {
+    color: 'var(--ink-3)',
+    fontSize: '12.5px',
+    display: 'block',
+    marginBottom: '6px',
+  },
+  visitDiag: {
+    color: 'var(--ink-2)',
+    fontSize: '13px',
+    margin: 0,
+    lineHeight: '1.5',
+  },
+  chip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '3px 10px',
+    borderRadius: '999px',
+    fontSize: '11.5px',
     fontWeight: '500',
   },
 }

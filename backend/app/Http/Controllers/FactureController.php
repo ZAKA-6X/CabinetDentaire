@@ -12,46 +12,48 @@ use Illuminate\Http\Request;
 
 class FactureController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        if (session('role') !== 'secretaire') {
+        if ($request->user()->role !== 'secretaire') {
             abort(403);
         }
 
-        return response()->json(Facture::all());
+        return response()->json(Facture::with('patient')->get());
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $role   = session('role');
-        $userId = session('user');
+        $user    = $request->user();
+        $facture = Facture::with('patient')->findOrFail($id);
 
-        $facture = Facture::findOrFail($id);
-
-        if ($role === 'patient') {
-            $patientId = Patient::where('utilisateur_id', $userId)->value('id');
+        if ($user->role === 'patient') {
+            $patientId = Patient::where('utilisateur_id', $user->id)->value('id');
             if ($facture->patient_id !== $patientId) abort(403);
         }
 
         return response()->json($facture);
     }
 
-    public function patientFactures($id)
+    public function patientFactures(Request $request, $id)
     {
-        $role   = session('role');
-        $userId = session('user');
+        $user = $request->user();
 
-        if ($role === 'patient') {
-            $patientId = Patient::where('utilisateur_id', $userId)->value('id');
+        if ($user->role === 'patient') {
+            $patientId = Patient::where('utilisateur_id', $user->id)->value('id');
             if ((int)$id !== $patientId) abort(403);
         }
 
-        return response()->json(Facture::where('patient_id', $id)->orderByDesc('date_facture')->get());
+        return response()->json(
+            Facture::with(['patient', 'visite.operations', 'visite.dentiste'])
+                ->where('patient_id', $id)
+                ->orderByDesc('date_facture')
+                ->get()
+        );
     }
 
     public function payment(Request $request, $id)
     {
-        if (session('role') !== 'secretaire') {
+        if ($request->user()->role !== 'secretaire') {
             abort(403);
         }
 
@@ -68,7 +70,7 @@ class FactureController extends Controller
             abort(422, 'Facture déjà payée.');
         }
 
-        $secretaireId = Secretaire::where('utilisateur_id', session('user'))->value('id');
+        $secretaireId = Secretaire::where('utilisateur_id', $request->user()->id)->value('id');
 
         $paiement = Paiement::create([
             'facture_id'       => $facture->id,
@@ -91,12 +93,12 @@ class FactureController extends Controller
         AuditService::log('update', 'factures', $facture->id, $factureOld, $facture->fresh()->toArray());
         NotificationService::paiementRecu($facture->fresh());
 
-        return response()->json($facture->fresh());
+        return response()->json($facture->fresh()->load('patient'));
     }
 
-    public function report()
+    public function report(Request $request)
     {
-        if (session('role') !== 'secretaire') {
+        if ($request->user()->role !== 'secretaire') {
             abort(403);
         }
 

@@ -3,148 +3,176 @@ import { useNavigate, Link } from 'react-router-dom'
 import api from '../../api'
 
 function Register() {
-  // ─── Les données du formulaire ───
   const [formData, setFormData] = useState({
-    nom_complet: '',
+    nom: '',
+    prenom: '',
     email: '',
     password: '',
     telephone: '',
     adresse: '',
     date_naissance: '',
-    sexe: 'Masculin',
+    sexe: 'masculin',
+    contact_urgence: '',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
   const navigate = useNavigate()
 
-  // ─── Mettre à jour les champs ───
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
-  // ─── Soumission formulaire ───
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
-
     try {
       await api.post('/register', formData)
-      // Inscription réussie → redirection login
       navigate('/login')
-    } catch (err) {
-      setError('Erreur lors de l\'inscription. Vérifiez vos informations.')
+    } catch {
+      setError("Erreur lors de l'inscription. Vérifiez vos informations.")
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.left}>
-      <div style={{
-    position: 'absolute',
-    inset: 0,
-    background: 'rgba(11, 31, 58, 0.22)',
-      }}/>
+    <div style={styles.page}>
 
-      {/* Partie gauche */}
-        <div style={styles.logoBox}>🦷</div>
-        <h1 style={styles.logoTitle}>Dentisto</h1>
-        <p style={styles.logoSub}>Rejoignez notre cabinet dentaire</p>
-        <div style={styles.features}>
-          <div style={styles.feature}> Inscription rapide et sécurisée</div>
-          <div style={styles.feature}> Réservez vos rendez-vous en ligne</div>
-          <div style={styles.feature}> Accédez à votre dossier médical</div>
-          <div style={styles.feature}>Consultez vos ordonnances</div>
+      <div style={styles.bgImage} />
+      <div style={styles.bgOverlay} />
+
+      {/* Logo top-left */}
+      <div style={styles.logoTop}>
+        <div style={styles.logoBox}>
+          <span style={styles.logoHZ}>HZ</span>
+        </div>
+        <div>
+          <div style={styles.logoName}>HZ Dentaire</div>
+          <div style={styles.logoSub}>Cabinet Dentaire</div>
         </div>
       </div>
 
-      {/* Partie droite — formulaire */}
-      <div style={styles.right}>
-        <div style={styles.formBox}>
-          <h2 style={styles.title}>Créer un compte</h2>
-          <p style={styles.subtitle}>Remplissez vos informations personnelles</p>
+      {/* Left slogan */}
+      <div style={styles.sloganBox}>
+        <div style={styles.sloganTag}>✦ Rejoignez-nous</div>
+        <h1 style={styles.slogan}>
+          Créez votre<br />
+          <em style={styles.sloganEm}>espace santé.</em>
+        </h1>
+        <p style={styles.sloganSub}>
+          Inscrivez-vous en quelques minutes et bénéficiez<br />
+          d'un suivi dentaire personnalisé et de qualité.
+        </p>
+        <div style={styles.features}>
+          {[
+            'Réservation de rendez-vous en ligne',
+            'Accès à votre dossier médical',
+            'Consultez vos ordonnances',
+            'Suivi de vos factures',
+          ].map((f) => (
+            <div key={f} style={styles.featureItem}>
+              <span style={styles.featureDot}>✓</span>
+              <span>{f}</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
-          {/* Message erreur */}
-          {error && (
-            <div style={styles.errorBox}>❌ {error}</div>
-          )}
+      {/* Right form panel */}
+      <div style={styles.formPanel}>
+        <div style={styles.formInner}>
+
+          <div style={styles.formHeader}>
+            <h2 style={styles.formTitle}>Créer un compte 🦷</h2>
+            <p style={styles.formSub}>Remplissez vos informations personnelles</p>
+          </div>
+
+          {error && <div style={styles.errorBox}>❌ {error}</div>}
 
           <form onSubmit={handleSubmit}>
 
-            {/* Nom + Email */}
             <div style={styles.row}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Nom complet</label>
+                <label style={styles.label}>Nom</label>
                 <input
                   style={styles.input}
                   type="text"
-                  name="nom_complet"
-                  placeholder="Nom Prénom"
-                  value={formData.nom_complet}
+                  name="nom"
+                  placeholder="Benali"
+                  value={formData.nom}
                   onChange={handleChange}
                   required
                 />
               </div>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Email</label>
+                <label style={styles.label}>Prénom</label>
                 <input
                   style={styles.input}
-                  type="email"
-                  name="email"
-                  placeholder="exemple@gmail.com"
-                  value={formData.email}
+                  type="text"
+                  name="prenom"
+                  placeholder="Ahmed"
+                  value={formData.prenom}
                   onChange={handleChange}
                   required
                 />
               </div>
             </div>
 
-            {/* Password + Téléphone */}
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Adresse email</label>
+              <input
+                style={styles.input}
+                type="email"
+                name="email"
+                placeholder="exemple@email.com"
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Mot de passe</label>
+              <input
+                style={styles.input}
+                type="password"
+                name="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                minLength={6}
+              />
+            </div>
+
             <div style={styles.row}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Mot de passe</label>
-                <input
-                  style={styles.input}
-                  type="password"
-                  name="password"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Téléphone</label>
                 <input
                   style={styles.input}
                   type="tel"
                   name="telephone"
-                  placeholder="+212 x xx-xxx-xxx"
+                  placeholder="+212 6 xx-xxx-xxx"
                   value={formData.telephone}
                   onChange={handleChange}
                   required
                 />
               </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Sexe</label>
+                <select
+                  style={styles.input}
+                  name="sexe"
+                  value={formData.sexe}
+                  onChange={handleChange}
+                >
+                  <option value="masculin">Masculin</option>
+                  <option value="feminin">Féminin</option>
+                </select>
+              </div>
             </div>
 
-            {/* Adresse */}
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Adresse</label>
-              <input
-                style={styles.input}
-                type="text"
-                name="adresse"
-                placeholder="123 Rue, Ville"
-                value={formData.adresse}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            {/* Date naissance + Sexe */}
             <div style={styles.row}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Date de naissance</label>
@@ -158,27 +186,33 @@ function Register() {
                 />
               </div>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Sexe</label>
-                <select
+                <label style={styles.label}>Contact urgence</label>
+                <input
                   style={styles.input}
-                  name="sexe"
-                  value={formData.sexe}
+                  type="tel"
+                  name="contact_urgence"
+                  placeholder="+212 6 xx-xxx-xxx"
+                  value={formData.contact_urgence}
                   onChange={handleChange}
-                >
-                  <option>Masculin</option>
-                  <option>Féminin</option>
-                </select>
+                />
               </div>
             </div>
 
-            <button
-              type="submit"
-              style={styles.btn}
-              disabled={loading}
-            >
-              {loading ? 'Inscription...' : 'Créer mon compte →'}
-            </button>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Adresse</label>
+              <input
+                style={styles.input}
+                type="text"
+                name="adresse"
+                placeholder="123 Rue, Ville"
+                value={formData.adresse}
+                onChange={handleChange}
+              />
+            </div>
 
+            <button type="submit" style={styles.btnSubmit} disabled={loading}>
+              {loading ? 'Inscription...' : "Créer mon compte →"}
+            </button>
           </form>
 
           <p style={styles.switchText}>
@@ -188,144 +222,240 @@ function Register() {
 
         </div>
       </div>
+
     </div>
   )
 }
 
-// ─── Styles ───
 const styles = {
-  container: {
-    display: 'flex',
+  page: {
     minHeight: '100vh',
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'stretch',
   },
-  left: {
-  width: '45%',
-  backgroundImage: 'url(https://adent.ch/wp-content/uploads/2022/04/cdsf_page_clinique_signature.jpg)',
-  backgroundSize: 'cover',
-  backgroundPosition: 'center',
-  position: 'relative',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '3rem',
-},
-  logoBox: {
-    fontSize: '3rem',
-    background: '#00C9A7',
-    borderRadius: '20px',
-    width: '80px',
-    height: '80px',
+  bgImage: {
+    position: 'fixed',
+    inset: 0,
+    backgroundImage: 'url(https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=1400&q=90)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    zIndex: 0,
+  },
+  bgOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'linear-gradient(110deg, rgba(10,40,36,0.82) 0%, rgba(10,40,36,0.65) 50%, rgba(10,40,36,0.15) 100%)',
+    zIndex: 1,
+  },
+  logoTop: {
+    position: 'fixed',
+    top: '2rem',
+    left: '2.5rem',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: '1rem',
+    gap: '12px',
+    zIndex: 10,
   },
-  logoTitle: {
-  color: 'black',
-  fontSize: '2.5rem',
-  margin: '0 0 0.5rem',
-  fontFamily: 'Georgia, serif',
-  textShadow: '2px 2px 10px rgba(0,0,0,0.9)',  // ← zid had
-},
-logoSub: {
-  color: 'black',                             // ← bdl rgba b white
-  fontSize: '2.0rem',
-  textAlign: 'center',
-  marginBottom: '2rem',
-  textShadow: '2px 2px 10px rgba(0,0,0,0.9)',  // ← zid had
-},
-feature: {
-  color: 'black',                             // ← bdl rgba b white
-  padding: '12px 0',
-  borderBottom: '1px solid rgba(0,0,0,0.1)',
-  fontSize: '0.9rem',
-  textShadow: '2px 2px 10px rgba(0,0,0,0.9)',  // ← zid had
-},
-   feature: {
-    color: 'rgb(0, 0, 0)',
-    padding: '12px 0',
-    borderBottom: '1px solid rgb(38, 227, 145)',
-    fontSize: '1.5rem',
+  logoBox: {
+    width: '46px',
+    height: '46px',
+    borderRadius: '13px',
+    background: 'rgba(255,255,255,0.15)',
+    backdropFilter: 'blur(10px)',
+    border: '1.5px solid rgba(255,255,255,0.3)',
+    display: 'grid',
+    placeItems: 'center',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
   },
-  right: {
+  logoHZ: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: '600',
+    fontSize: '18px',
+    color: 'white',
+    letterSpacing: '-0.02em',
+  },
+  logoName: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: '600',
+    fontSize: '17px',
+    color: 'white',
+    letterSpacing: '-0.01em',
+    textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+  },
+  logoSub: {
+    fontSize: '10px',
+    letterSpacing: '0.15em',
+    textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.6)',
+  },
+  sloganBox: {
+    position: 'relative',
+    zIndex: 5,
     flex: 1,
     display: 'flex',
-    alignItems: 'center',
+    flexDirection: 'column',
     justifyContent: 'center',
-    background: 'white',
-    padding: '2rem',
+    padding: '8rem 3rem 3rem 3.5rem',
+    maxWidth: '55%',
   },
-  formBox: {
-    width: '100%',
-    maxWidth: '540px',
-  },
-  title: {
-    fontSize: '1.8rem',
-    color: '#0B1F3A',
-    marginBottom: '0.3rem',
-    fontFamily: 'Georgia, serif',
-  },
-  subtitle: {
-    color: '#94A3B8',
-    fontSize: '0.9rem',
+  sloganTag: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    background: 'rgba(255,255,255,0.1)',
+    backdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    borderRadius: '999px',
+    padding: '6px 16px',
+    fontSize: '12px',
+    color: 'rgba(255,255,255,0.9)',
+    letterSpacing: '0.04em',
     marginBottom: '1.5rem',
+    width: 'fit-content',
+  },
+  slogan: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: '300',
+    fontSize: '52px',
+    lineHeight: '1.1',
+    color: 'white',
+    margin: '0 0 1.25rem',
+    letterSpacing: '-0.02em',
+    textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+  },
+  sloganEm: {
+    fontStyle: 'italic',
+    fontWeight: '400',
+    color: '#7dd3c8',
+  },
+  sloganSub: {
+    fontSize: '15px',
+    color: 'rgba(255,255,255,0.75)',
+    lineHeight: '1.7',
+    margin: '0 0 2rem',
+    maxWidth: '42ch',
+  },
+  features: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  featureItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: '14px',
+  },
+  featureDot: {
+    width: '22px',
+    height: '22px',
+    borderRadius: '50%',
+    background: 'rgba(125,211,200,0.25)',
+    border: '1px solid rgba(125,211,200,0.5)',
+    display: 'grid',
+    placeItems: 'center',
+    fontSize: '11px',
+    color: '#7dd3c8',
+    flexShrink: 0,
+  },
+  formPanel: {
+    position: 'relative',
+    zIndex: 5,
+    width: '460px',
+    flexShrink: 0,
+    background: 'var(--bg, #f4f1ea)',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    padding: '2.5rem 2rem',
+    boxShadow: '-20px 0 80px rgba(0,0,0,0.25)',
+    overflowY: 'auto',
+    maxHeight: '100vh',
+  },
+  formInner: {
+    width: '100%',
+    maxWidth: '380px',
+  },
+  formHeader: {
+    marginBottom: '1.75rem',
+  },
+  formTitle: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: '400',
+    fontSize: '1.9rem',
+    letterSpacing: '-0.02em',
+    color: 'var(--ink, #1a201f)',
+    margin: '0 0 6px',
+  },
+  formSub: {
+    color: 'var(--ink-3, #7d8682)',
+    fontSize: '14px',
+    margin: 0,
   },
   errorBox: {
     background: '#FEF2F2',
     border: '1px solid #FECACA',
-    color: '#EF4444',
+    color: '#991B1B',
     padding: '10px 14px',
     borderRadius: '8px',
-    fontSize: '0.85rem',
+    fontSize: '13px',
     marginBottom: '1rem',
   },
   row: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: '1rem',
+    gap: '12px',
   },
   formGroup: {
-    marginBottom: '1rem',
+    marginBottom: '1.1rem',
   },
   label: {
     display: 'block',
-    fontSize: '0.85rem',
-    fontWeight: '500',
-    color: '#475569',
+    fontSize: '11px',
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: 'var(--ink-3, #7d8682)',
     marginBottom: '6px',
+    fontWeight: '500',
   },
   input: {
     width: '100%',
     padding: '11px 14px',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '8px',
-    fontSize: '0.9rem',
+    border: '1px solid var(--line, #e3ddd0)',
+    borderRadius: '10px',
+    fontSize: '14px',
+    background: 'var(--card, #ffffff)',
+    color: 'var(--ink, #1a201f)',
     outline: 'none',
     boxSizing: 'border-box',
     fontFamily: 'inherit',
-    background: '#F8FAFC',
+    transition: 'border-color 0.15s, box-shadow 0.15s',
   },
-  btn: {
+  btnSubmit: {
     width: '100%',
     padding: '13px',
-    background: '#0B1F3A',
-    color: 'white',
+    background: 'var(--accent, #0f4842)',
+    color: '#fff',
     border: 'none',
-    borderRadius: '8px',
-    fontSize: '0.95rem',
+    borderRadius: '10px',
+    fontSize: '14px',
     fontWeight: '500',
     cursor: 'pointer',
+    fontFamily: 'inherit',
     marginTop: '0.5rem',
+    letterSpacing: '0.02em',
+    transition: 'all 0.15s',
   },
   switchText: {
     textAlign: 'center',
-    marginTop: '1.5rem',
-    fontSize: '0.88rem',
-    color: '#94A3B8',
+    fontSize: '13px',
+    color: 'var(--ink-3, #7d8682)',
+    margin: '1.25rem 0 0',
   },
   link: {
-    color: '#00C9A7',
+    color: 'var(--accent, #0f4842)',
     textDecoration: 'none',
     fontWeight: '500',
   },
