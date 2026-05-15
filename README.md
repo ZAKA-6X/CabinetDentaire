@@ -3,6 +3,8 @@
 Application web full-stack de gestion d'un cabinet dentaire, développée dans le cadre d'un projet académique. Elle couvre l'ensemble du flux clinique : prise de rendez-vous, consultations, ordonnances et facturation, avec trois rôles utilisateurs distincts.
 
 ---
+<img width="1898" height="944" alt="image" src="https://github.com/user-attachments/assets/27ddc0a5-7a05-4275-af20-a01e60ae78fa" />
+
 
 ## Présentation
 
