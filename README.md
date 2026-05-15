@@ -1,70 +1,217 @@
-# Getting Started with Create React App
+# HZ Dentaire — Application de Gestion de Cabinet Dentaire
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Application web full-stack de gestion d'un cabinet dentaire, développée dans le cadre d'un projet académique. Elle couvre l'ensemble du flux clinique : prise de rendez-vous, consultations, ordonnances et facturation, avec trois rôles utilisateurs distincts.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## Présentation
 
-### `npm start`
+**HZ Dentaire** digitalise la gestion quotidienne d'un cabinet dentaire. Trois types d'acteurs interagissent sur une plateforme unifiée :
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+| Rôle | Responsabilités principales |
+|------|-----------------------------|
+| **Patient** | Réserver des rendez-vous, consulter ses visites, télécharger ordonnances et factures en PDF |
+| **Secrétaire** | Confirmer/rejeter les RDV, enregistrer les paiements, gérer médicaments et opérations |
+| **Dentiste** | Consulter l'agenda du jour, enregistrer les visites, émettre des ordonnances |
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## Stack technique
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Backend
+| Technologie | Rôle |
+|-------------|------|
+| **Laravel 11** | Framework PHP — API REST |
+| **Laravel Sanctum** | Authentification par token (SPA) |
+| **MySQL** | Base de données relationnelle |
+| **XAMPP** | Serveur local (Apache + MySQL) |
 
-### `npm run build`
+### Frontend
+| Technologie | Rôle |
+|-------------|------|
+| **React 18** | Interface utilisateur (SPA) |
+| **React Router v6** | Navigation côté client |
+| **Axios** | Communication avec l'API |
+| **jsPDF** | Génération PDF (ordonnances, factures) |
+| **React Toastify** | Notifications utilisateur |
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Architecture du projet
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```
+Cabinet Dentaire/
+├── backend/                        # API RESTful Laravel 11
+│   ├── app/
+│   │   ├── Http/Controllers/       # Un controller par ressource
+│   │   │   ├── AuthController.php
+│   │   │   ├── RendezVousController.php
+│   │   │   ├── VisiteController.php
+│   │   │   ├── OrdonnanceController.php
+│   │   │   ├── FactureController.php
+│   │   │   └── ...
+│   │   ├── Models/                 # Eloquent ORM
+│   │   │   ├── Patient.php
+│   │   │   ├── Dentiste.php
+│   │   │   ├── Visite.php
+│   │   │   ├── Facture.php
+│   │   │   ├── Ordonnance.php
+│   │   │   └── ...
+│   │   └── Services/
+│   │       ├── AuditService.php
+│   │       └── NotificationService.php
+│   ├── database/migrations/        # Schéma complet
+│   └── routes/api.php              # Toutes les routes API
+│
+└── frontend/                       # Application React (Vite)
+    └── src/
+        ├── pages/
+        │   ├── auth/               # Login, Register
+        │   ├── patient/            # Dashboard, RDV, Visites, Ordonnances, Factures
+        │   ├── secretaire/         # RDV, Paiements, Médicaments, Opérations, Patients
+        │   └── dentiste/           # Dashboard, Agenda du jour, Visite, Ordonnance
+        ├── components/             # Layout (sidebar), ProtectedRoute, DialogProvider
+        ├── context/AuthContext.jsx  # État d'authentification global
+        └── api.js                  # Instance Axios avec intercepteurs
+```
 
-### `npm run eject`
+---
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Fonctionnalités détaillées
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Authentification & Sécurité
+- Inscription avec choix de rôle, connexion par email/mot de passe
+- Token Sanctum stocké côté client, envoyé dans chaque requête API
+- Routes protégées par rôle (`ProtectedRoute`) côté frontend
+- Vérification du rôle côté backend sur chaque endpoint sensible
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### Module Patient
+- Calendrier interactif de réservation avec vérification des créneaux disponibles
+- Suivi des rendez-vous filtrable par statut (en attente, confirmé, complété, annulé)
+- Historique complet des visites médicales
+- Téléchargement des ordonnances en PDF (médicaments, posologie, durée)
+- Téléchargement des factures en PDF (détail des opérations, dentiste, total)
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Module Secrétaire
+- Liste des rendez-vous avec filtres et recherche par nom de patient
+- Confirmation ou rejet des demandes de RDV (avec motif de rejet)
+- Enregistrement des paiements : montant, méthode (espèces, carte, virement, chèque)
+- CRUD complet du catalogue de médicaments (nom, forme, dosage, prix)
+- Gestion des tarifs du catalogue d'opérations dentaires
+- Fiche patient complète : RDV, visites, ordonnances, paiements
 
-## Learn More
+### Module Dentiste
+- Agenda du jour : rendez-vous confirmés + visites complètes enregistrées
+- Enregistrement de visite : diagnostic, traitement fourni, notes cliniques, opérations effectuées
+- Génération automatique de facture à la validation de la visite
+- Émission d'ordonnances avec médicaments, fréquence, durée et instructions
+- Historique médical complet par patient
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+---
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Installation et lancement
 
-### Code Splitting
+### Prérequis
+- XAMPP avec PHP 8.2+ et MySQL actifs
+- Node.js 18+
+- Composer
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 1. Backend (Laravel)
 
-### Analyzing the Bundle Size
+```bash
+cd backend
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+# Installer les dépendances
+composer install
 
-### Making a Progressive Web App
+# Configurer l'environnement
+cp .env.example .env
+# Modifier DB_DATABASE, DB_USERNAME, DB_PASSWORD dans .env
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+# Générer la clé applicative
+php artisan key:generate
 
-### Advanced Configuration
+# Créer la base de données et les tables
+php artisan migrate --seed
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+# Lancer le serveur
+php artisan serve --port=8000
+```
 
-### Deployment
+### 2. Frontend (React)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+```bash
+cd frontend
 
-### `npm run build` fails to minify
+# Installer les dépendances
+npm install
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+# Lancer en mode développement
+npm run dev
+# Accessible sur http://localhost:5173
+```
+
+### Comptes de test (créés par le seeder)
+
+| Rôle | Email | Mot de passe |
+|------|-------|--------------|
+| Dentiste | dentiste@clinic.ma | password |
+| Secrétaire | secretaire@clinic.ma | password |
+| Patient | patient@clinic.ma | password |
+
+---
+
+## Schéma de base de données
+
+```
+utilisateurs
+├── patients            (nom, prenom, telephone, date_naissance, sexe)
+├── dentistes           (nom, prenom, specialite)
+└── secretaires         (nom, prenom)
+
+rendez_vous             (patient_id, dentiste_id, date, heure, statut, raison)
+
+visites                 (rendezvous_id, patient_id, dentiste_id, date_visite,
+                         diagnostic, traitement_fourni, notes, statut)
+
+operation_dentaires     (visite_id, nom_operation, description, cout, date_effectuee)
+
+factures                (visite_id, patient_id, numero_facture,
+                         frais_visite_base, frais_operations, montant_total,
+                         statut, date_facture, date_paiement)
+
+ordonnances             (visite_id, patient_id, dentiste_id,
+                         date_delivrance, instructions_generales, statut)
+
+ordonnance_medicaments  (ordonnance_id, medicament_id, frequence,
+                         duree_jours, instructions_speciales)
+
+medicaments             (nom, forme, dosage, prix_unitaire, description)
+operations              (nom, description, cout)   ← catalogue tarifaire
+paiements               (facture_id, secretaire_id, montant_recu,
+                         methode_paiement, date_paiement)
+```
+
+---
+
+## Choix de conception
+
+**Architecture découplée (API + SPA)** : le backend expose uniquement une API REST, le frontend est une Single Page Application indépendante. Cette séparation facilite la maintenance et permettrait d'ajouter une application mobile sans modifier le backend.
+
+**Laravel Sanctum** : authentification légère par token adaptée aux SPA, intégrée nativement à Laravel, sans la complexité de OAuth.
+
+**Génération PDF côté client (jsPDF)** : évite la charge serveur pour la génération de documents et offre un téléchargement immédiat sans requête supplémentaire.
+
+**Context API React** : gestion de l'état d'authentification sans bibliothèque externe (pas besoin de Redux pour ce périmètre).
+
+**Rôles stricts côté backend** : chaque endpoint vérifie le rôle de l'utilisateur connecté, indépendamment des protections frontend.
+
+---
+
+## Technologies utilisées — Résumé
+
+```
+Backend  : PHP 8.2 · Laravel 11 · Sanctum · Eloquent ORM · MySQL
+Frontend : JavaScript (ES2024) · React 18 · Vite · React Router v6 · Axios · jsPDF
+Outils   : XAMPP · Composer · npm · Git
+```
