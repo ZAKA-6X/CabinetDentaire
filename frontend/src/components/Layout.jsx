@@ -24,8 +24,8 @@ function Layout({ children }) {
       { icon: 'cal', label: 'Réserver RDV', path: '/patient/reserver' },
       { icon: 'list', label: 'Mes RDV', path: '/patient/rendez-vous' },
       { icon: 'visit', label: 'Mes visites', path: '/patient/visites' },
-      { icon: 'pill', label: 'Ordonnances', path: '/patient/ordonnances' },
-      { icon: 'receipt', label: 'Factures', path: '/patient/factures' },
+      { icon: 'pill', label: 'Mes Ordonnances', path: '/patient/ordonnances' },
+      { icon: 'receipt', label: 'Mes Factures', path: '/patient/factures' },
       { icon: 'user', label: 'Mon profil', path: '/patient/profil' },
     ]
     if (user?.role === 'SECRETAIRE') return [

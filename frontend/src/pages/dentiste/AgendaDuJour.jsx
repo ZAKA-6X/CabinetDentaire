@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../components/Layout'
+import EmptyState from '../../components/EmptyState'
 import api from '../../api'
 
 const DAYS_FR   = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
@@ -127,11 +128,7 @@ function AgendaDuJour() {
           <p style={{ color: 'var(--ink-3)', padding: '3rem 0', textAlign: 'center' }}>Chargement...</p>
         ) : tab === 'rdv' ? (
           filteredRdvs.length === 0 ? (
-            <div style={s.empty}>
-              <div style={s.emptyIcon}><IcoCal /></div>
-              <p style={s.emptyTitle}>Aucun rendez-vous</p>
-              <p style={s.emptySub}>{isToday ? "Pas de consultations programmées aujourd'hui." : 'Aucune consultation ce jour-là.'}</p>
-            </div>
+            <EmptyState title="Aucun rendez-vous" sub={isToday ? "Pas de consultations programmées aujourd'hui." : 'Aucune consultation ce jour-là.'} />
           ) : (
             <div style={s.timeline}>
               {filteredRdvs.slice().sort((a, b) => (a.heure || '').localeCompare(b.heure || '')).map((rdv, i, arr) => {
@@ -187,11 +184,7 @@ function AgendaDuJour() {
         ) : (
           // ── Visites tab ──
           filteredVisites.length === 0 ? (
-            <div style={s.empty}>
-              <div style={s.emptyIcon}><IcoClip /></div>
-              <p style={s.emptyTitle}>Aucune visite complète</p>
-              <p style={s.emptySub}>{isToday ? "Aucune consultation enregistrée aujourd'hui." : 'Non disponible pour les jours passés.'}</p>
-            </div>
+            <EmptyState title="Aucune visite complète" sub={isToday ? "Aucune consultation enregistrée aujourd'hui." : 'Non disponible pour les jours passés.'} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {filteredVisites.map(v => {
@@ -294,18 +287,11 @@ function AgendaDuJour() {
                           </div>
                         )}
 
-                        {(v.patient?.id || v.ordonnance) && (
+                        {v.patient?.id && (
                           <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                            {v.patient?.id && (
-                              <button style={s.btnAction} onClick={() => navigate(`/dentiste/patient/${v.patient.id}/historique`)}>
-                                <IcoUser /> Dossier patient
-                              </button>
-                            )}
-                            {v.ordonnance && (
-                              <button style={s.btnAction} onClick={() => navigate(`/dentiste/ordonnance/${v.id}`)}>
-                                <IcoReceipt /> Ordonnance
-                              </button>
-                            )}
+                            <button style={s.btnAction} onClick={() => navigate(`/dentiste/patient/${v.patient.id}/historique`)}>
+                              <IcoUser /> Dossier patient
+                            </button>
                           </div>
                         )}
                       </div>

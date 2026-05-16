@@ -11,18 +11,17 @@ function IssuePrescription() {
   const [medicaments, setMedicaments] = useState([])
   const [selectedMeds, setSelectedMeds] = useState([])
   const [instructions, setInstructions] = useState('')
-  const [visites, setVisites] = useState([])
-  const [selectedVisiteId, setSelectedVisiteId] = useState(visite_id || '')
   const [loading, setLoading] = useState(false)
 
+  // Rediriger si pas de visite_id — l'ordonnance doit venir d'une visite enregistrée
   useEffect(() => {
-    const reqs = [api.get('/medicaments')]
-    if (!visite_id) reqs.push(api.get('/dentiste/visites/today'))
-    Promise.all(reqs)
-      .then(([medsRes, visitesRes]) => {
-        setMedicaments(medsRes.data)
-        if (visitesRes) setVisites(visitesRes.data || [])
-      })
+    if (!visite_id) {
+      toast.warning('Une ordonnance doit être créée depuis une visite.')
+      navigate('/dentiste/dashboard')
+      return
+    }
+    api.get('/medicaments')
+      .then(res => setMedicaments(res.data))
       .catch(() => {})
   }, [])
 
@@ -41,13 +40,12 @@ function IssuePrescription() {
   }
 
   const handleSubmit = async () => {
-    if (!selectedVisiteId) { toast.warning('Sélectionnez une visite'); return }
     if (selectedMeds.length === 0) { toast.warning('Ajoutez au moins un médicament'); return }
     if (selectedMeds.some(m => !m.frequence)) { toast.warning('Remplissez la fréquence de tous les médicaments'); return }
     setLoading(true)
     try {
       await api.post('/ordonnances', {
-        visite_id: selectedVisiteId,
+        visite_id,
         instructions_generales: instructions,
         medicaments: selectedMeds.map(m => ({
           medicament_id: m.id,
@@ -79,30 +77,12 @@ function IssuePrescription() {
           <div style={s.card}>
             <h3 style={s.cardTitle}>Prescription</h3>
 
-            {/* Visite selector (only when no visite_id in URL) */}
-            {!visite_id && (
-              <div style={s.formGroup}>
-                <label style={s.label}>Visite du jour</label>
-                <select style={s.input} value={selectedVisiteId} onChange={e => setSelectedVisiteId(e.target.value)}>
-                  <option value="">— Choisir une visite —</option>
-                  {visites.map(v => (
-                    <option key={v.id} value={v.id}>
-                      {v.patient ? `${v.patient.prenom || ''} ${v.patient.nom || ''}`.trim() : `Visite #${v.id}`}
-                      {v.date_visite ? ` · ${v.date_visite}` : ''}
-                    </option>
-                  ))}
-                </select>
+            <div style={s.formGroup}>
+              <label style={s.label}>Visite</label>
+              <div style={s.infoBadge}>
+                Visite #{String(visite_id).padStart(4, '0')}
               </div>
-            )}
-
-            {visite_id && (
-              <div style={{ ...s.formGroup }}>
-                <label style={s.label}>Visite</label>
-                <div style={s.infoBadge}>
-                  Visite #{String(visite_id).padStart(4, '0')}
-                </div>
-              </div>
-            )}
+            </div>
 
             {/* Add medication */}
             <div style={s.formGroup}>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { toast } from 'react-toastify'
 import Layout from '../../components/Layout'
 import { confirmDialog } from '../../components/DialogProvider'
+import EmptyState from '../../components/EmptyState'
 import api from '../../api'
 
 const FORMES = ['Comprimé', 'Gélule', 'Sirop', 'Injectable', 'Crème']
@@ -91,16 +92,12 @@ function ManageMedications() {
         {loading ? (
           <p style={{ color: 'var(--ink-3)', padding: '2rem 0' }}>Chargement...</p>
         ) : medications.length === 0 ? (
-          <div style={s.empty}>
-            <div style={s.emptyIcon}>
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="8" width="18" height="8" rx="4" transform="rotate(-30 12 12)"/><path d="M8.5 6.5l7 7"/>
-              </svg>
+          <>
+            <EmptyState title="Aucun médicament" sub="Le catalogue est vide." />
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '-16px', marginBottom: '32px' }}>
+              <button style={s.btnPrimary} onClick={openAdd}><IcoPlus /> Ajouter le premier</button>
             </div>
-            <p style={{ color: 'var(--ink-2)', fontFamily: "'Fraunces', serif", fontSize: '18px', margin: '0 0 4px' }}>Aucun médicament</p>
-            <p style={{ color: 'var(--ink-3)', fontSize: '13px', margin: '0 0 16px' }}>Le catalogue est vide.</p>
-            <button style={s.btnPrimary} onClick={openAdd}><IcoPlus /> Ajouter le premier</button>
-          </div>
+          </>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {medications.map(med => {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'react-toastify'
 import Layout from '../../components/Layout'
+import EmptyState from '../../components/EmptyState'
 import api from '../../api'
 
 const MONTHS_FR = ['janv','févr','mars','avr','mai','juin','juil','août','sept','oct','nov','déc']
@@ -112,15 +113,10 @@ function ManagePayments() {
         {loading ? (
           <p style={{ color: 'var(--ink-3)', padding: '2rem 0' }}>Chargement...</p>
         ) : displayList.length === 0 ? (
-          <div style={s.empty}>
-            <div style={s.emptyIcon}><IcoReceipt /></div>
-            <p style={{ color: 'var(--ink-2)', fontFamily: "'Fraunces', serif", fontSize: '18px', margin: '0 0 4px' }}>
-              {tab === 'attente' ? 'Toutes les factures sont payées' : 'Aucune facture payée'}
-            </p>
-            <p style={{ color: 'var(--ink-3)', fontSize: '13px', margin: 0 }}>
-              {search ? 'Aucun résultat pour cette recherche.' : ''}
-            </p>
-          </div>
+          <EmptyState
+            title={tab === 'attente' ? 'Toutes les factures sont payées' : 'Aucune facture payée'}
+            sub={search ? 'Aucun résultat pour cette recherche.' : undefined}
+          />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {displayList.map(f => (

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import api from '../../api'
+import { useAuth } from '../../context/AuthContext'
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -8,6 +8,7 @@ function Register() {
     prenom: '',
     email: '',
     password: '',
+    password_confirmation: '',
     telephone: '',
     adresse: '',
     date_naissance: '',
@@ -16,6 +17,7 @@ function Register() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const { register } = useAuth()
   const navigate = useNavigate()
 
   const handleChange = (e) => {
@@ -27,8 +29,8 @@ function Register() {
     setError('')
     setLoading(true)
     try {
-      await api.post('/register', formData)
-      navigate('/login')
+      await register(formData)
+      navigate('/patient/dashboard')
     } catch {
       setError("Erreur lors de l'inscription. Vérifiez vos informations.")
     } finally {
@@ -132,18 +134,33 @@ function Register() {
               />
             </div>
 
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Mot de passe</label>
-              <input
-                style={styles.input}
-                type="password"
-                name="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                minLength={6}
-              />
+            <div style={styles.row}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Mot de passe</label>
+                <input
+                  style={styles.input}
+                  type="password"
+                  name="password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  minLength={6}
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Confirmer mot de passe</label>
+                <input
+                  style={styles.input}
+                  type="password"
+                  name="password_confirmation"
+                  placeholder="••••••••"
+                  value={formData.password_confirmation}
+                  onChange={handleChange}
+                  required
+                  minLength={6}
+                />
+              </div>
             </div>
 
             <div style={styles.row}>

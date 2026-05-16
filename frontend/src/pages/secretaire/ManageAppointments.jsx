@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'react-toastify'
 import Layout from '../../components/Layout'
+import EmptyState from '../../components/EmptyState'
 import api from '../../api'
 
 const FILTERS = [
@@ -126,15 +127,7 @@ function ManageAppointments() {
         {loading ? (
           <p style={{ color: 'var(--ink-3)', padding: '2rem 0' }}>Chargement...</p>
         ) : filtered.length === 0 ? (
-          <div style={s.empty}>
-            <div style={s.emptyIcon}>
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>
-              </svg>
-            </div>
-            <p style={{ color: 'var(--ink-2)', fontFamily: "'Fraunces', serif", fontSize: '18px', margin: '0 0 4px' }}>Aucun rendez-vous</p>
-            <p style={{ color: 'var(--ink-3)', fontSize: '13px', margin: 0 }}>Essayez un autre filtre.</p>
-          </div>
+          <EmptyState title="Aucun rendez-vous" sub="Essayez un autre filtre." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {filtered.map(rdv => {

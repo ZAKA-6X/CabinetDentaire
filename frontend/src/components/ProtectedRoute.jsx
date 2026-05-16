@@ -4,17 +4,17 @@ import { useAuth } from '../context/AuthContext'
 function ProtectedRoute({ children, roles }) {
   const { user, token } = useAuth()
 
-  // Machi connecté → redirect login
+  // Pas de token → rediriger vers login
   if (!token) {
     return <Navigate to="/login" />
   }
 
-  // Connecté mais rôle machi msmah
+  // Rôle non autorisé → rediriger vers login
   if (roles && !roles.includes(user?.role)) {
     return <Navigate to="/login" />
   }
 
-  // Kol chi mezyan → afficher la page
+  // Accès autorisé → afficher la page
   return children
 }
 

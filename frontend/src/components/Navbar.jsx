@@ -20,8 +20,8 @@ function Navbar() {
           <Link to="/patient/reserver" style={styles.link}>📅 Réserver</Link>
           <Link to="/patient/rendez-vous" style={styles.link}>📋 Mes RDV</Link>
           <Link to="/patient/visites" style={styles.link}>🏥 Visites</Link>
-          <Link to="/patient/ordonnances" style={styles.link}>💊 Ordonnances</Link>
-          <Link to="/patient/factures" style={styles.link}>💳 Factures</Link>
+          <Link to="/patient/ordonnances" style={styles.link}>💊 Mes Ordonnances</Link>
+          <Link to="/patient/factures" style={styles.link}>💳 Mes Factures</Link>
         </>
       )
     }
@@ -42,8 +42,9 @@ function Navbar() {
       return (
         <>
           <Link to="/dentiste/dashboard" style={styles.link}>🏠 Accueil</Link>
-          <Link to="/dentiste/visite" style={styles.link}>📝 Enregistrer visite</Link>
-          <Link to="/dentiste/ordonnance" style={styles.link}>💊 Ordonnance</Link>
+          <Link to="/dentiste/visite/nouvelle" style={styles.link}>📝 Enregistrer visite</Link>
+          <Link to="/dentiste/agenda" style={styles.link}>📅 Agenda</Link>
+          <Link to="/dentiste/patients" style={styles.link}>👥 Patients</Link>
         </>
       )
     }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Layout from '../../components/Layout'
+import EmptyState from '../../components/EmptyState'
 import api from '../../api'
 
 // ─────────────────────────────────────────────
@@ -65,13 +66,7 @@ function PatientsList() {
         {loading ? (
           <p style={{ color: 'var(--ink-3)', fontSize: '14px' }}>Chargement...</p>
         ) : filtered.length === 0 ? (
-          <div style={s.emptyState}>
-            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ink-3)', marginBottom: '12px' }}>
-              <circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-              <path d="M16 3a3 3 0 0 1 0 6M21 21v-2a4 4 0 0 0-3-3.87"/>
-            </svg>
-            <p style={{ margin: 0, color: 'var(--ink-3)', fontSize: '14px' }}>Aucun patient trouvé</p>
-          </div>
+          <EmptyState title="Aucun patient trouvé" sub="Essayez un autre terme de recherche." />
         ) : (
           <div style={s.grid}>
             {filtered.map(patient => (
@@ -223,12 +218,6 @@ function PatientDetail() {
                 </div>
               )}
 
-              <button
-                style={{ ...s.accentBtn, marginTop: '20px' }}
-                onClick={() => navigate(`/dentiste/visite/nouvelle`)}
-              >
-                + Nouvelle visite
-              </button>
             </div>
 
             {/* Stats */}
@@ -272,9 +261,7 @@ function PatientDetail() {
             {activeTab === 'visites' && (
               <div>
                 {visites.length === 0 ? (
-                  <div style={s.emptyState}>
-                    <p style={{ margin: 0, color: 'var(--ink-3)', fontSize: '14px' }}>Aucune visite enregistrée.</p>
-                  </div>
+                  <EmptyState title="Aucune visite" sub="Aucune visite enregistrée pour ce patient." />
                 ) : visites.map(visite => (
                   <div key={visite.id} style={s.card}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
@@ -331,9 +318,7 @@ function PatientDetail() {
             {activeTab === 'ordonnances' && (
               <div>
                 {ordonnances.length === 0 ? (
-                  <div style={s.emptyState}>
-                    <p style={{ margin: 0, color: 'var(--ink-3)', fontSize: '14px' }}>Aucune ordonnance trouvée.</p>
-                  </div>
+                  <EmptyState title="Aucune ordonnance" sub="Aucune ordonnance délivrée pour ce patient." />
                 ) : ordonnances.map(ord => (
                   <div key={ord.id} style={s.card}>
                     <div style={{ marginBottom: '12px' }}>

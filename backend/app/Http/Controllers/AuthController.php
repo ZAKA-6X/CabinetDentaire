@@ -46,13 +46,13 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'email'          => 'required|email|unique:utilisateurs,email',
-            'password'       => 'required|min:6',
-            'nom'            => 'required',
-            'prenom'         => 'required',
-            'telephone'      => 'required',
-            'date_naissance' => 'required|date',
-            'sexe'           => 'required|in:masculin,feminin',
+            'email'                 => 'required|email|unique:utilisateurs,email',
+            'password'              => 'required|string|min:6|confirmed',
+            'nom'                   => 'required',
+            'prenom'                => 'required',
+            'telephone'             => 'required',
+            'date_naissance'        => 'required|date',
+            'sexe'                  => 'required|in:masculin,feminin',
         ]);
 
         $user = Utilisateur::create([
@@ -73,7 +73,16 @@ class AuthController extends Controller
             'notes_generales' => $request->notes_generales,
         ]);
 
-        return response()->json(['message' => 'Patient créé avec succès.'], 201);
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'user'  => [
+                'id'    => $user->id,
+                'email' => $user->email,
+                'role'  => strtoupper($user->role),
+            ],
+            'token' => $token,
+        ], 201);
     }
 
     public function profile(Request $request)

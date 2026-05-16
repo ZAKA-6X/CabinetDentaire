@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import Layout from '../../components/Layout'
+import EmptyState from '../../components/EmptyState'
 import api from '../../api'
 import jsPDF from 'jspdf'
 
@@ -147,10 +148,9 @@ function MyInvoices() {
         {loading ? (
           <p style={{ color: 'var(--ink-3)' }}>Chargement...</p>
         ) : error ? (
-          <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--ink-3)' }}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚠️</div>
-            <p>Impossible de charger les factures.</p>
-          </div>
+          <EmptyState title="Impossible de charger les factures" sub="Vérifiez votre connexion et réessayez." />
+        ) : invoices.length === 0 ? (
+          <EmptyState title="Aucune facture" sub="Vos factures apparaîtront ici après chaque visite." />
         ) : (
           <>
             {enAttente.length > 0 && (

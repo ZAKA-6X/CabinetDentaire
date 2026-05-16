@@ -23,7 +23,6 @@ function RecordVisit() {
     Promise.all([api.get('/operations'), api.get('/rendez-vous')])
       .then(([opsRes, rdvRes]) => {
         setOperations(opsRes.data)
-        // only confirmed RDVs can have a visite
         const todayStr = new Date().toISOString().slice(0, 10)
         setRdvs(rdvRes.data.filter(r => r.statut === 'CONFIRMÉ' && r.date === todayStr))
       })

@@ -1,14 +1,26 @@
 import { useState, useEffect } from 'react'
 import Layout from '../../components/Layout'
+import EmptyState from '../../components/EmptyState'
 import api from '../../api'
+import jsPDF from 'jspdf'
 
 const MONTHS_SHORT = ['JANV','FÉVR','MARS','AVR','MAI','JUIN','JUIL','AOÛT','SEPT','OCT','NOV','DÉC']
+const MONTHS_LONG  = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']
+
+const fmtDate = (dateStr) => {
+  if (!dateStr) return '—'
+  const parts = String(dateStr).split('-')
+  const d = new Date(+parts[0], +parts[1] - 1, +parts[2])
+  return `${d.getDate()} ${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}`
+}
 
 function MyVisits() {
-  const [visits, setVisits] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
-  const [search, setSearch] = useState('')
+  const [visits, setVisits]       = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState(false)
+  const [search, setSearch]       = useState('')
+  const [selected, setSelected]   = useState(null)
+  const [activeTab, setActiveTab] = useState('facture')
 
   useEffect(() => {
     const fetchData = async () => {
@@ -33,191 +45,397 @@ function MyVisits() {
       )
     : visits
 
+  const openDrawer = (visite) => {
+    setSelected(visite)
+    setActiveTab('facture')
+  }
+
+  const closeDrawer = () => setSelected(null)
+
+  // ── PDF Facture ──
+  const downloadFacturePDF = () => {
+    const f = selected?.facture
+    if (!f) return
+    const doc = new jsPDF()
+    doc.setFontSize(20)
+    doc.setTextColor(15, 72, 66)
+    doc.text('HZ Dentaire', 20, 20)
+    doc.setFontSize(12)
+    doc.setTextColor(50)
+    doc.text(`Facture N°: ${f.numero_facture || '—'}`, 20, 35)
+    doc.text(`Date: ${fmtDate(f.date_facture)}`, 20, 43)
+    doc.text(`Visite du: ${fmtDate(selected.date_visite)}`, 20, 51)
+    let y = 67
+    doc.setFontSize(13)
+    doc.text('Détail:', 20, y)
+    y += 10
+    doc.setFontSize(11)
+    const fraisBase = parseFloat(f.frais_visite_base || 0)
+    if (fraisBase > 0) {
+      doc.text('Frais de visite de base', 25, y)
+      doc.text(`${fraisBase.toFixed(2)} MAD`, 160, y)
+      y += 10
+    }
+    ;(selected.operations || []).forEach(op => {
+      doc.text(`• ${op.nom_operation || op.nom || '—'}`, 25, y)
+      doc.text(`${parseFloat(op.cout).toFixed(2)} MAD`, 160, y)
+      y += 10
+    })
+    y += 5
+    doc.line(20, y, 190, y)
+    y += 8
+    doc.setFontSize(13)
+    doc.text('Total:', 130, y)
+    doc.text(`${parseFloat(f.montant_total || 0).toFixed(2)} MAD`, 160, y)
+    doc.save(`${f.numero_facture || 'facture'}.pdf`)
+  }
+
+  // ── PDF Ordonnance ──
+  const downloadOrdonnancePDF = () => {
+    const p = selected?.ordonnance
+    if (!p) return
+    const doc = new jsPDF()
+    doc.setFontSize(20)
+    doc.setTextColor(15, 72, 66)
+    doc.text('HZ Dentaire', 20, 20)
+    doc.setFontSize(14)
+    doc.setTextColor(50)
+    doc.text(`Ordonnance RX-${String(p.id).padStart(4, '0')}`, 20, 35)
+    doc.setFontSize(12)
+    doc.text(`Date: ${fmtDate(p.date_delivrance)}`, 20, 45)
+    if (p.instructions_generales) {
+      doc.text(`Instructions: ${p.instructions_generales}`, 20, 53)
+    }
+    let y = 65
+    doc.setFontSize(13)
+    doc.text('Médicaments:', 20, y)
+    ;(p.medicaments || []).forEach(m => {
+      y += 10
+      doc.setFontSize(11)
+      const nom = m.medicament?.nom || m.nom || '—'
+      const detail = [m.frequence, m.duree_jours ? `${m.duree_jours} jours` : null].filter(Boolean).join(' · ')
+      doc.text(`• ${nom}${detail ? `  (${detail})` : ''}`, 25, y)
+    })
+    doc.save(`ordonnance-RX-${String(p.id).padStart(4, '0')}.pdf`)
+  }
+
   return (
     <Layout>
       <div>
 
         {/* Header */}
         <div style={{ marginBottom: '28px' }}>
-          <h1 style={styles.pageTitle}>
+          <h1 style={s.pageTitle}>
             Mes <em style={{ fontStyle: 'italic', color: 'var(--accent)' }}>visites</em>
           </h1>
-          <p style={styles.pageSub}>
+          <p style={s.pageSub}>
             Historique complet — diagnostics, traitements, opérations et ordonnances associées.
           </p>
         </div>
 
         {/* Recherche */}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '22px' }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <svg style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)' }} viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
-            </svg>
-            <input
-              placeholder="Rechercher dans diagnostics, traitements..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                width: '100%',
-                border: '1px solid var(--line)',
-                borderRadius: '10px',
-                padding: '11px 14px 11px 38px',
-                fontSize: '13.5px',
-                background: 'var(--card)',
-                outline: 'none',
-                boxSizing: 'border-box',
-                color: 'var(--ink)',
-              }}
-            />
-          </div>
-          <button style={{
-            padding: '10px 16px',
-            border: '1px solid var(--line-strong)',
-            borderRadius: '10px',
-            background: 'var(--card)',
-            fontSize: '13px',
-            color: 'var(--ink-2)',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}>
-            Filtrer par date
-          </button>
+        <div style={{ position: 'relative', marginBottom: '22px' }}>
+          <svg style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)' }} viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+          </svg>
+          <input
+            placeholder="Rechercher dans diagnostics, traitements..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: '100%', border: '1px solid var(--line)', borderRadius: '10px', padding: '11px 14px 11px 38px', fontSize: '13.5px', background: 'var(--card)', outline: 'none', boxSizing: 'border-box', color: 'var(--ink)' }}
+          />
         </div>
 
-        {/* Liste visites */}
+        {/* Liste */}
         {loading ? (
           <p style={{ color: 'var(--ink-3)' }}>Chargement...</p>
         ) : error ? (
-          <div style={styles.empty}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚠️</div>
-            <p>Impossible de charger les visites. Vérifiez votre connexion.</p>
-          </div>
+          <EmptyState title="Impossible de charger les visites" sub="Vérifiez votre connexion et réessayez." />
+        ) : filtered.length === 0 ? (
+          <EmptyState title="Aucune visite" sub="Aucune visite enregistrée pour le moment." />
         ) : (
-          <div style={styles.card}>
+          <div style={s.card}>
             {filtered.map((visite, i) => {
-              const d = new Date(visite.date_visite)
+              const d     = new Date(visite.date_visite)
               const day   = isNaN(d) ? '—' : d.getDate()
               const month = isNaN(d) ? '—' : MONTHS_SHORT[d.getMonth()]
               const year  = isNaN(d) ? '' : d.getFullYear()
               const title = visite.diagnostic || visite.traitement_fourni || 'Visite médicale'
               return (
-                <div key={visite.id} style={{
-                  ...styles.visitRow,
-                  borderBottom: i < filtered.length - 1 ? '1px solid var(--line)' : 'none',
-                }}>
-
-                  {/* Date */}
-                  <div style={styles.visitDate}>
-                    <div style={styles.visitDay}>{day}</div>
-                    <div style={styles.visitMonth}>{month}</div>
-                    <div style={styles.visitYear}>{year}</div>
+                <div
+                  key={visite.id}
+                  onClick={() => openDrawer(visite)}
+                  style={{
+                    ...s.visitRow,
+                    borderBottom: i < filtered.length - 1 ? '1px solid var(--line)' : 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={s.visitDate}>
+                    <div style={s.visitDay}>{day}</div>
+                    <div style={s.visitMonth}>{month}</div>
+                    <div style={s.visitYear}>{year}</div>
                   </div>
-
-                  {/* Contenu */}
                   <div style={{ flex: 1 }}>
-                    <b style={styles.visitTitle}>{title}</b>
-                    <small style={styles.visitMeta}>
-                      visite V-{String(visite.id).padStart(4, '0')}
-                    </small>
+                    <b style={s.visitTitle}>{title}</b>
+                    <small style={s.visitMeta}>V-{String(visite.id).padStart(4, '0')}</small>
                     {visite.traitement_fourni && (
-                      <p style={styles.visitDiag}>{visite.traitement_fourni}</p>
+                      <p style={s.visitDiag}>{visite.traitement_fourni}</p>
                     )}
                   </div>
-
-                  {/* Droite */}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                    <span style={{ ...styles.chip, background: 'var(--success-soft)', color: 'var(--success)' }}>
+                    <span style={{ ...s.chip, background: 'var(--success-soft)', color: 'var(--success)' }}>
                       <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }}/>
                       Complété
                     </span>
-                    <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: 'var(--accent)' }}>
-                      {visite.ordonnance && <span style={{ cursor: 'pointer' }}>· Ordonnance</span>}
-                      {visite.facture && <span style={{ cursor: 'pointer' }}>· Facture</span>}
+                    <div style={{ display: 'flex', gap: '6px', fontSize: '11.5px', color: 'var(--ink-3)' }}>
+                      {visite.ordonnance && <span>Ord.</span>}
+                      {visite.facture    && <span>Fact.</span>}
                     </div>
                   </div>
-
                 </div>
               )
             })}
           </div>
         )}
       </div>
+
+      {/* ── Overlay ── */}
+      <div
+        style={{
+          position: 'fixed', inset: 0,
+          background: '#1a201f55',
+          backdropFilter: 'blur(4px)',
+          zIndex: 50,
+          opacity: selected ? 1 : 0,
+          pointerEvents: selected ? 'auto' : 'none',
+          transition: 'opacity 0.2s',
+        }}
+        onClick={closeDrawer}
+      />
+
+      {/* ── Drawer ── */}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0,
+        width: '520px', maxWidth: '94vw',
+        background: 'var(--bg)',
+        zIndex: 51,
+        transform: selected ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 0.3s cubic-bezier(.3,.7,.2,1)',
+        display: 'flex', flexDirection: 'column',
+        boxShadow: '-20px 0 60px #1a201f22',
+      }}>
+        {selected && (
+          <>
+            {/* Drawer header */}
+            <div style={{ padding: '22px 28px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--surface)' }}>
+              <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: '400', fontSize: '22px', margin: 0, letterSpacing: '-0.01em', color: 'var(--ink)', flex: 1 }}>
+                Visite V-{String(selected.id).padStart(4, '0')}
+              </h2>
+              <button
+                onClick={closeDrawer}
+                style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'grid', placeItems: 'center', border: '1px solid var(--line)', background: 'var(--card)', cursor: 'pointer', fontSize: '14px', color: 'var(--ink-2)' }}
+              >✕</button>
+            </div>
+
+            {/* Drawer body */}
+            <div style={{ padding: '24px 28px', overflow: 'auto', flex: 1 }}>
+
+              {/* Infos visite */}
+              {[
+                { label: 'DATE', value: fmtDate(selected.date_visite) },
+                { label: 'DIAGNOSTIC', value: selected.diagnostic || '—' },
+                { label: 'TRAITEMENT', value: selected.traitement_fourni || '—' },
+              ].map(row => (
+                <div key={row.label} style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '16px', padding: '10px 0', borderBottom: '1px dashed var(--line)' }}>
+                  <label style={{ fontSize: '11.5px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>{row.label}</label>
+                  <span style={{ fontSize: '13.5px', color: 'var(--ink)' }}>{row.value}</span>
+                </div>
+              ))}
+
+              {/* Tabs */}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '22px', marginBottom: '18px' }}>
+                {['facture', 'ordonnance'].map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: '10px',
+                      fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit',
+                      transition: 'all 0.15s',
+                      background: activeTab === tab ? 'var(--accent)' : 'var(--surface)',
+                      color:      activeTab === tab ? '#fff' : 'var(--ink-2)',
+                      border:     activeTab === tab ? 'none' : '1px solid var(--line)',
+                    }}
+                  >
+                    {tab === 'facture' ? 'Facture' : 'Ordonnance'}
+                  </button>
+                ))}
+              </div>
+
+              {/* ── Facture tab ── */}
+              {activeTab === 'facture' && (
+                !selected.facture ? (
+                  <p style={{ color: 'var(--ink-3)', fontSize: '13px' }}>Aucune facture associée à cette visite.</p>
+                ) : (
+                  <>
+                    <div style={{ marginBottom: '10px' }}>
+                      <span style={{
+                        ...s.chip,
+                        ...(selected.facture.statut === 'en_attente'
+                          ? { background: 'var(--amber-soft)', color: '#8d6a2b' }
+                          : { background: 'var(--success-soft)', color: 'var(--success)' })
+                      }}>
+                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: selected.facture.statut === 'en_attente' ? 'var(--gold)' : 'var(--success)', display: 'inline-block' }}/>
+                        {selected.facture.statut === 'en_attente' ? 'À régler' : 'Payée'}
+                      </span>
+                    </div>
+
+                    {[
+                      { label: 'RÉFÉRENCE', value: selected.facture.numero_facture },
+                      { label: 'DATE',      value: fmtDate(selected.facture.date_facture) },
+                    ].map(row => (
+                      <div key={row.label} style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '16px', padding: '10px 0', borderBottom: '1px dashed var(--line)' }}>
+                        <label style={{ fontSize: '11.5px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>{row.label}</label>
+                        <span style={{ fontSize: '13.5px', color: 'var(--ink)' }}>{row.value}</span>
+                      </div>
+                    ))}
+
+                    <h3 style={{ fontFamily: "'Fraunces', serif", fontWeight: '500', fontSize: '15px', color: 'var(--accent)', margin: '20px 0 10px', paddingBottom: '6px', borderBottom: '1px solid var(--line)' }}>
+                      Détails de la facturation
+                    </h3>
+
+                    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', padding: '20px' }}>
+                      {parseFloat(selected.facture.frais_visite_base || 0) > 0 && (
+                        <div style={s.invLine}>
+                          <span>Frais de visite de base</span>
+                          <span style={{ fontFamily: '"Geist Mono", monospace' }}>{parseFloat(selected.facture.frais_visite_base).toFixed(2)} MAD</span>
+                        </div>
+                      )}
+                      {(selected.operations || []).map((op, i) => (
+                        <div key={i} style={s.invLine}>
+                          <span style={{ color: 'var(--ink-2)' }}>· {op.nom_operation || op.nom}</span>
+                          <span style={{ fontFamily: '"Geist Mono", monospace' }}>{parseFloat(op.cout).toFixed(2)} MAD</span>
+                        </div>
+                      ))}
+                      <div style={{ ...s.invLine, borderBottom: 'none', borderTop: '1px solid var(--line-strong)', marginTop: '6px', paddingTop: '14px', fontWeight: '500' }}>
+                        <span>Total</span>
+                        <span style={{ fontFamily: '"Geist Mono", monospace' }}>{parseFloat(selected.facture.montant_total || 0).toFixed(2)} MAD</span>
+                      </div>
+                    </div>
+
+                    {selected.facture.statut === 'en_attente' && (
+                      <div style={{ background: 'var(--amber-soft)', borderRadius: 'var(--radius-sm)', padding: '14px 16px', marginTop: '16px', fontSize: '13px', color: '#8d6a2b', lineHeight: '1.5' }}>
+                        ✦ Règlement en espèces à la clinique. La secrétaire marquera la facture comme payée à la réception du paiement.
+                      </div>
+                    )}
+                  </>
+                )
+              )}
+
+              {/* ── Ordonnance tab ── */}
+              {activeTab === 'ordonnance' && (
+                !selected.ordonnance ? (
+                  <p style={{ color: 'var(--ink-3)', fontSize: '13px' }}>Aucune ordonnance associée à cette visite.</p>
+                ) : (
+                  <>
+                    {[
+                      { label: 'RÉFÉRENCE', value: `RX-${String(selected.ordonnance.id).padStart(4,'0')}` },
+                      { label: 'DATE',      value: fmtDate(selected.ordonnance.date_delivrance) },
+                    ].map(row => (
+                      <div key={row.label} style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '16px', padding: '10px 0', borderBottom: '1px dashed var(--line)' }}>
+                        <label style={{ fontSize: '11.5px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>{row.label}</label>
+                        <span style={{ fontSize: '13.5px', color: 'var(--ink)' }}>{row.value}</span>
+                      </div>
+                    ))}
+
+                    {selected.ordonnance.instructions_generales && (
+                      <div style={{ background: 'var(--accent-soft)', borderRadius: '8px', padding: '12px 14px', margin: '16px 0 6px', fontSize: '13px', color: 'var(--accent)', lineHeight: 1.5 }}>
+                        {selected.ordonnance.instructions_generales}
+                      </div>
+                    )}
+
+                    <h3 style={{ fontFamily: "'Fraunces', serif", fontWeight: '500', fontSize: '15px', color: 'var(--accent)', margin: '20px 0 10px', paddingBottom: '6px', borderBottom: '1px solid var(--line)' }}>
+                      Médicaments prescrits
+                    </h3>
+
+                    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', padding: '20px' }}>
+                      {(selected.ordonnance.medicaments || []).length === 0 ? (
+                        <p style={{ color: 'var(--ink-3)', fontSize: '13px', margin: 0 }}>Aucun médicament.</p>
+                      ) : (selected.ordonnance.medicaments || []).map((m, i, arr) => (
+                        <div key={i} style={{ padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px dashed var(--line)' : 'none' }}>
+                          <b style={{ fontSize: '13.5px', color: 'var(--ink)' }}>{m.medicament?.nom || m.nom || '—'}</b>
+                          <div style={{ display: 'flex', gap: '14px', marginTop: '4px' }}>
+                            {m.frequence    && <small style={{ color: 'var(--accent)', fontSize: '12px' }}>{m.frequence}</small>}
+                            {m.duree_jours  && <small style={{ color: 'var(--ink-3)', fontSize: '12px' }}>{m.duree_jours} jours</small>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )
+              )}
+            </div>
+
+            {/* Drawer footer */}
+            <div style={{ padding: '16px 28px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
+              {activeTab === 'facture' && selected.facture && (
+                <button style={s.btnPrimary} onClick={downloadFacturePDF}>
+                  ↓ Télécharger en PDF
+                </button>
+              )}
+              {activeTab === 'ordonnance' && selected.ordonnance && (
+                <button style={s.btnPrimary} onClick={downloadOrdonnancePDF}>
+                  ↓ Télécharger en PDF
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </Layout>
   )
 }
 
-const styles = {
+const s = {
   pageTitle: {
-    fontFamily: "'Fraunces', serif",
-    fontWeight: '400',
-    fontSize: '36px',
-    letterSpacing: '-0.02em',
-    color: 'var(--ink)',
-    margin: '0 0 6px',
-    lineHeight: '1.1',
+    fontFamily: "'Fraunces', serif", fontWeight: '400', fontSize: '36px',
+    letterSpacing: '-0.02em', color: 'var(--ink)', margin: '0 0 6px', lineHeight: '1.1',
   },
   pageSub: { color: 'var(--ink-2)', fontSize: '14px', margin: 0 },
   card: {
-    background: 'var(--card)',
-    border: '1px solid var(--line)',
-    borderRadius: 'var(--radius)',
-    padding: '0 22px',
+    background: 'var(--card)', border: '1px solid var(--line)',
+    borderRadius: 'var(--radius)', padding: '0 22px',
   },
   visitRow: {
-    display: 'grid',
-    gridTemplateColumns: '90px 1fr auto',
-    gap: '20px',
-    padding: '20px 0',
-    alignItems: 'start',
+    display: 'grid', gridTemplateColumns: '90px 1fr auto',
+    gap: '20px', padding: '20px 0', alignItems: 'start',
   },
   visitDate: { paddingTop: '2px' },
   visitDay: {
-    fontFamily: "'Fraunces', serif",
-    fontSize: '28px',
-    fontWeight: '400',
-    lineHeight: '1',
-    letterSpacing: '-0.02em',
-    color: 'var(--ink)',
+    fontFamily: "'Fraunces', serif", fontSize: '28px', fontWeight: '400',
+    lineHeight: '1', letterSpacing: '-0.02em', color: 'var(--ink)',
   },
-  visitMonth: {
-    fontSize: '11px',
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    color: 'var(--ink-3)',
-    marginTop: '2px',
-  },
-  visitYear: {
-    fontSize: '11px',
-    color: 'var(--ink-3)',
-    marginTop: '1px',
-  },
-  visitTitle: {
-    fontSize: '14px',
-    fontWeight: '500',
-    display: 'block',
-    marginBottom: '3px',
-    color: 'var(--ink)',
-  },
-  visitMeta: {
-    color: 'var(--ink-3)',
-    fontSize: '12.5px',
-    display: 'block',
-    marginBottom: '6px',
-  },
-  visitDiag: {
-    color: 'var(--ink-2)',
-    fontSize: '13px',
-    margin: 0,
-    lineHeight: '1.5',
-  },
+  visitMonth: { fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--ink-3)', marginTop: '2px' },
+  visitYear:  { fontSize: '11px', color: 'var(--ink-3)', marginTop: '1px' },
+  visitTitle: { fontSize: '14px', fontWeight: '500', display: 'block', marginBottom: '3px', color: 'var(--ink)' },
+  visitMeta:  { color: 'var(--ink-3)', fontSize: '12.5px', display: 'block', marginBottom: '6px' },
+  visitDiag:  { color: 'var(--ink-2)', fontSize: '13px', margin: 0, lineHeight: '1.5' },
   chip: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '3px 10px',
-    borderRadius: '999px',
-    fontSize: '11.5px',
-    fontWeight: '500',
+    display: 'inline-flex', alignItems: 'center', gap: '6px',
+    padding: '3px 10px', borderRadius: '999px', fontSize: '11.5px', fontWeight: '500',
+  },
+  invLine: {
+    display: 'flex', justifyContent: 'space-between',
+    fontSize: '13.5px', padding: '8px 0',
+    borderBottom: '1px dashed var(--line)', color: 'var(--ink)',
+  },
+  btnPrimary: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+    width: '100%', padding: '12px 16px', borderRadius: '10px',
+    fontSize: '13.5px', fontWeight: '500',
+    background: 'var(--accent)', color: '#fff',
+    border: 'none', cursor: 'pointer', fontFamily: 'inherit',
   },
 }
 

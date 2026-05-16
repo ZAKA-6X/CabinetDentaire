@@ -52,7 +52,6 @@ function DentisteDashboard() {
 
   const SHORTCUTS = [
     { Ico: IcoEdit,  label: 'Enregistrer visite',   sub: 'Nouvelle consultation',  path: '/dentiste/visite/nouvelle',   icoStyle: { background: 'var(--accent-soft)', color: 'var(--accent)' } },
-    { Ico: IcoPill,  label: 'Ordonnance',             sub: 'Nouvelle prescription',  path: '/dentiste/ordonnance/nouvelle',icoStyle: { background: 'var(--amber-soft)',  color: 'var(--gold)' } },
     { Ico: IcoUsers, label: 'Patients',               sub: 'Historique & dossiers',  path: '/dentiste/patients',           icoStyle: { background: 'var(--success-soft)',color: 'var(--success)' } },
   ]
 

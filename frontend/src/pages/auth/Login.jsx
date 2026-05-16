@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import api from '../../api'
 
 function Login() {
   const [email, setEmail] = useState('')
@@ -16,30 +15,14 @@ function Login() {
     setError('')
     setLoading(true)
     try {
-      const response = await api.post('/login', { email, password })
-      const { token, user } = response.data
-
-      // Store token so the next request can use it
-      localStorage.setItem('token', token)
-
-      // Fetch profile to get nom + prenom
-      let mergedUser = { ...user }
-      try {
-        const profileRes = await api.get('/me')
-        const { nom, prenom } = profileRes.data.profile
-        mergedUser.nom = nom
-        mergedUser.prenom = prenom
-        mergedUser.nom_complet = `${prenom} ${nom}`
-      } catch { /* profile fetch failed — proceed without name */ }
-
-      login(mergedUser, token)
+      const mergedUser = await login(email, password)
 
       const routes = {
         PATIENT: '/patient/dashboard',
         SECRETAIRE: '/secretaire/dashboard',
         DENTISTE: '/dentiste/dashboard',
       }
-      navigate(routes[user.role])
+      navigate(routes[mergedUser.role])
     } catch {
       setError('Email ou mot de passe incorrect')
     } finally {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import Layout from '../../components/Layout'
 import { confirmDialog } from '../../components/DialogProvider'
+import EmptyState from '../../components/EmptyState'
 import api from '../../api'
 
 const FILTERS = [
@@ -141,10 +142,7 @@ function MyAppointments() {
         {loading ? (
           <p style={{ color: 'var(--ink-3)', padding: '2rem 0' }}>Chargement...</p>
         ) : filtered.length === 0 ? (
-          <div style={styles.empty}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📭</div>
-            <p>Aucun rendez-vous trouvé</p>
-          </div>
+          <EmptyState title="Aucun rendez-vous" sub="Aucun rendez-vous ne correspond à vos critères." />
         ) : (
           filtered.map(rdv => {
             const chip = chipStyle(rdv.statut)

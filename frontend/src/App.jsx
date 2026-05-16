@@ -146,11 +146,6 @@ function App() {
             <IssuePrescription />
           </ProtectedRoute>
         } />
-        <Route path="/dentiste/ordonnance/nouvelle" element={
-          <ProtectedRoute roles={['DENTISTE']}>
-            <IssuePrescription />
-          </ProtectedRoute>
-        } />
         <Route path="/dentiste/patient/:id/historique" element={
           <ProtectedRoute roles={['DENTISTE']}>
             <PatientHistory />

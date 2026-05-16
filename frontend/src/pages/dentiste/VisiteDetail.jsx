@@ -70,11 +70,6 @@ function VisiteDetail() {
                 <IcoUser /> Dossier patient
               </button>
             )}
-            {visite.ordonnance && (
-              <button style={s.btnAction} onClick={() => navigate(`/dentiste/ordonnance/${visite.id}`)}>
-                <IcoPill /> Ordonnance
-              </button>
-            )}
           </div>
         </div>
 
